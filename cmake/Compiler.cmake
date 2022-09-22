@@ -78,17 +78,17 @@ macro(dune_probe_cxx)
       list(GET gxxver 1 gxxmin)
 
       # For now all minor versions of GCC v4 have a compatible ABI.
-      if("${gxxmaj}" MATCHES "4")
+      if("${gxxmaj}" MATCHES "7")
         set(gxxmin "x")
-      endif("${gxxmaj}" MATCHES "4")
+      endif("${gxxmaj}" MATCHES "7")
 
       set(DUNE_CXX_NAME "GCC v${gxxmaj}.${gxxmin}")
       set(DUNE_CXX_CANONICAL "gcc${gxxmaj}${gxxmin}")
 
       # This avoids spurious warnings from C++ STL code.
-      if("${gxxmaj}" MATCHES "3")
+      if("${gxxmaj}" MATCHES "6")
         set(DUNE_CXX_FLAGS "${DUNE_CXX_FLAGS} -Wno-uninitialized")
-      endif("${gxxmaj}" MATCHES "3")
+      endif("${gxxmaj}" MATCHES "6")
 
       check_cxx_compiler_flag(-fexceptions has_fexceptions)
       if(has_fexceptions)
