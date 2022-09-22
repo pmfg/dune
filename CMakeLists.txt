@@ -28,7 +28,7 @@
 ############################################################################
 
 # Validate CMake version.
-cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.7 FATAL_ERROR)
 
 if(COMMAND CMAKE_POLICY)
   cmake_policy(SET CMP0003 NEW)
@@ -51,7 +51,7 @@ set(PROJECT_VENDOR "Universidade do Porto - LSTS")
 set(PROJECT_COPYRIGHT "Copyright (C) 2007-2022 - ${PROJECT_VENDOR}")
 set(PROJECT_CONTACT "DUNE <dune@lsts.pt>")
 set(PROJECT_VERSION_YEAR  "2022")
-set(PROJECT_VERSION_MONTH "04")
+set(PROJECT_VERSION_MONTH "09")
 set(PROJECT_VERSION_PATCH "0")
 set(PROJECT_VERSION_RCN   "0")
 
@@ -92,7 +92,8 @@ dune_option(V4L2 "Enable support for libv4l2")
 dune_option(JS "Enable support for SpiderMonkey javascript engine")
 dune_option(XENETH "Enable support for the Xeneth SDK")
 dune_option(BLUEVIEW "Enable support for the BlueView SDK")
-dune_option(OPENCV "Enable support for OpenCV")
+dune_option(OPENCV "Enable support for OpenCV v2.x")
+dune_option(OPENCV4 "Enable support for OpenCV v4.x")
 dune_option(POINTGREY "Enable support for POINTGREY")
 dune_option(EXIV2 "Enable support for Exiv2")
 dune_option(NO_RTTI "Disable support for RTTI")
