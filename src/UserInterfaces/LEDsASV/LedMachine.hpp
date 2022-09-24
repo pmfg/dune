@@ -62,6 +62,8 @@ namespace UserInterfaces
                 m_wdog.reset();
                 m_counter_state = 0;
                 m_led_state = LED_STATE_BOOT;
+                m_last_led_state = LED_STATE_BOOT;
+                m_fix_state = LED_STATE_NO_FIX;
             }
 
             ~LedMachine(void)
@@ -82,7 +84,7 @@ namespace UserInterfaces
                             setLed(0, true);
                             setLed(1, false);
                             setLed(2, false);
-                            m_wdog.setTop(1.0);
+                            m_wdog.setTop(0.2);
                             m_counter_state++;
                             break;
 
@@ -90,7 +92,7 @@ namespace UserInterfaces
                             setLed(0, false);
                             setLed(1, true);
                             setLed(2, false);
-                            m_wdog.setTop(1.0);
+                            m_wdog.setTop(0.2);
                             m_counter_state++;
                             break;
 
@@ -98,6 +100,14 @@ namespace UserInterfaces
                             setLed(0, false);
                             setLed(1, false);
                             setLed(2, true);
+                            m_wdog.setTop(0.2);
+                            m_counter_state++;
+                            break;
+
+                        case 3:
+                            setLed(0, false);
+                            setLed(1, false);
+                            setLed(2, false);
                             m_wdog.setTop(1.0);
                             m_counter_state = 0;
                             break;
@@ -207,7 +217,7 @@ namespace UserInterfaces
                             setLed(0, false);
                             setLed(1, false);
                             setLed(2, false);
-                            if(m_led_state == LED_STATE_NORMAL)
+                            if(m_fix_state == LED_STATE_NORMAL)
                                 m_wdog.setTop(2.0);
                             else
                                 m_wdog.setTop(0.5);
@@ -226,7 +236,7 @@ namespace UserInterfaces
                             setLed(0, false);
                             setLed(1, false);
                             setLed(2, false);
-                            if(m_led_state == LED_STATE_NORMAL)
+                            if(m_fix_state == LED_STATE_NORMAL)
                                 m_wdog.setTop(3.0);
                             else
                                 m_wdog.setTop(1.0);
@@ -320,6 +330,24 @@ namespace UserInterfaces
             }
 
             void
+            turnLedOn(uint8_t led_id)
+            {
+                if (m_led_invert[led_id])
+                    m_gpio[led_id]->setValue(false);
+                else
+                    m_gpio[led_id]->setValue(true);
+            }
+
+            void
+            turnLedOff(uint8_t led_id)
+            {
+                if (m_led_invert[led_id])
+                    m_gpio[led_id]->setValue(true);
+                else
+                    m_gpio[led_id]->setValue(false);
+            }
+
+            void
             setLed(uint8_t led_id, bool state)
             {
                 if (m_led_invert[led_id])
@@ -331,8 +359,21 @@ namespace UserInterfaces
             void
             setState(uint8_t state)
             {
-                m_led_state = state;
-                m_counter_state = 0;
+                if(m_last_led_state != state)
+                {
+                    m_led_state = state;
+                    m_last_led_state = state;
+                    m_counter_state = 0;
+                }
+            }
+
+            void
+            setGPSFixState(bool state_of_gps_fix)
+            {
+                if(state_of_gps_fix)
+                    m_fix_state = LED_STATE_NORMAL;
+                else
+                    m_fix_state = LED_STATE_NO_FIX;
             }
 
             uint8_t
@@ -352,6 +393,10 @@ namespace UserInterfaces
             uint8_t m_led_state;
             //! Counter state of led state
             uint8_t m_counter_state;
+            //! Save last led state
+            uint8_t m_last_led_state;
+            //! Control state og GPSFix
+            uint8_t m_fix_state;
         };
     }
 }
