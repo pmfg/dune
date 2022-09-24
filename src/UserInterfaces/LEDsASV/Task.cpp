@@ -54,6 +54,10 @@ namespace UserInterfaces
       int led_pin[c_max_led];
       // Invert output
       bool led_invert[c_max_led];
+      // Min Number of satellites to validate GPSFix
+      int min_sat;
+      // Min HDop to validate GPSFix
+      float min_hdop;
     };
 
     struct Task: public DUNE::Tasks::Task
@@ -66,13 +70,29 @@ namespace UserInterfaces
       uint8_t m_system_state;
       //! Flag of critical error
       bool m_critical_error;
+      //! Flag to control state of task
+      bool m_is_active;
+      //! Watchdog.
+      Counter<double> m_wdog;
+      //! Flag to control first run of task
+      bool m_first_run;
       // Task Arguments.
       Arguments m_args;
 
       Task(const std::string& name, Tasks::Context& ctx):
         Tasks::Task(name, ctx),
-        m_critical_error(false)
+        m_critical_error(false),
+        m_is_active(false),
+        m_first_run(true)
       {
+        param("Minimum Satellites for GPSFix state", m_args.min_sat)
+          .defaultValue("5")
+          .description("Minimum Satellites for GPSFix state");
+
+        param("Minimum HDop for GPSFix state", m_args.min_hdop)
+          .defaultValue("1.5")
+          .description("Minimum HDop for GPSFix state");
+
         for (unsigned i = 0; i < c_max_led; ++i)
         {
           std::string option = String::str("LED %u - Invert Output", i);
@@ -93,6 +113,7 @@ namespace UserInterfaces
         bind<IMC::VehicleState>(this);
         bind<IMC::PowerOperation>(this);
         bind<IMC::EntityState>(this);
+        bind<IMC::GpsFix>(this);
       }
 
       void
@@ -101,7 +122,7 @@ namespace UserInterfaces
         setEntityState(IMC::EntityState::ESTA_BOOT, Status::CODE_INIT);
         for (uint8_t i = 0; i < c_max_led; ++i)
         {
-          inf("LED %s at pin %d: output %s", m_args.led_name[i].c_str(), m_args.led_pin[i], m_args.led_invert[i]?"inverted":"not inverted");
+          debug("LED %s at pin %d: output %s", m_args.led_name[i].c_str(), m_args.led_pin[i], m_args.led_invert[i]?"inverted":"not inverted");
           m_gpio[i] = new Hardware::GPIO(m_args.led_pin[i]);
           m_gpio[i]->setDirection(Hardware::GPIO::GPIO_DIR_OUTPUT);
         }
@@ -111,9 +132,27 @@ namespace UserInterfaces
       void
       onResourceRelease(void)
       {
-        /*Memory::clear(m_gpio[0]);
-        Memory::clear(m_gpio[1]);
-        Memory::clear(m_gpio[2]);*/
+        if(m_is_active)
+        {
+          for(uint8_t i = 0; i < c_max_led; i++)
+          {
+            m_led->turnLedOff(i);
+            Memory::clear(m_gpio[i]);
+          }
+        }
+      }
+
+      void
+      consume(const IMC::GpsFix* msg)
+      {
+        if (msg->getSource() != getSystemId())
+          return;
+
+        debug("GpsFix %d %f", msg->satellites, msg->hdop);
+        if(msg->satellites >= m_args.min_sat && msg->hdop <= m_args.min_hdop)
+          m_led->setGPSFixState(true);
+        else
+          m_led->setGPSFixState(false);
       }
 
       void
@@ -122,10 +161,13 @@ namespace UserInterfaces
         if (msg->state != IMC::EntityState::ESTA_FAILURE)
           return;
 
+        inf("EntityState %s", resolveEntity(msg->getId()).c_str());
         //Add code to monitor entity for critical error
         //use m_args to get entity to filter
-        m_led->setState(LedMachine::LED_STATE_ERROR);
-        m_critical_error = true;
+        ////m_led->setState(LedMachine::LED_STATE_ERROR);
+        ////m_critical_error = true;
+        if(m_first_run)
+          m_wdog.reset();
       }
 
       void
@@ -134,7 +176,9 @@ namespace UserInterfaces
         if (msg->getDestination() != getSystemId())
           return;
 
-        switch (msg->op)
+        inf("PowerOperation %d", msg->op);
+
+        /*switch (msg->op)
         {
           case IMC::PowerOperation::POP_PWR_DOWN_IP:
             m_led->setState(LedMachine::LED_STATE_POWEROFF);
@@ -142,7 +186,7 @@ namespace UserInterfaces
           case IMC::PowerOperation::POP_PWR_DOWN_ABORTED:
             m_led->setState(LedMachine::LED_STATE_NORMAL);
             break;
-        }
+        }*/
       }
 
       void
@@ -154,6 +198,8 @@ namespace UserInterfaces
         // If system is shutting down don't update LEDs.
         if (m_led->getLedState() == LedMachine::LED_STATE_POWEROFF)
           return;
+
+        debug("VehicleState %d | %s", msg->op_mode, resolveEntity(msg->getSourceEntity()).c_str());
 
         switch (msg->op_mode)
         {
@@ -179,15 +225,21 @@ namespace UserInterfaces
       void
       onMain(void)
       {
-        setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_ACTIVE);
+        m_is_active = true;
+        m_wdog.setTop(5.0);
         while (!stopping())
         {
+          if(m_first_run)
+          {
+            if(m_wdog.overflow())
+            {
+              setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_ACTIVE);
+              m_first_run = false;
+            }
+          }
           waitForMessages(0.01);
           m_led->ledStateUpdate();
         }
-        Memory::clear(m_gpio[0]);
-        Memory::clear(m_gpio[1]);
-        Memory::clear(m_gpio[2]);
       }
     };
   }
