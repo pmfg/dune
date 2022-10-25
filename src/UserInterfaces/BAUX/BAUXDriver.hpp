@@ -61,6 +61,7 @@ namespace UserInterfaces
                 m_device = device_uart;
                 m_baud = baud_uart;
                 m_is_switch_on = false;
+                m_new_imu_data = false;
                 try
                 {
                     m_uart = new SerialPort(m_device, m_baud);
@@ -130,6 +131,95 @@ namespace UserInterfaces
                 return m_is_switch_on;
             }
 
+            bool
+            newIMUData(void)
+            {
+                if(m_new_imu_data)
+                {
+                    m_new_imu_data = false;
+                    return true;
+                }
+                return m_new_imu_data;
+            }
+
+            double
+            getYaw(void)
+            {
+                return m_imu_data.yaw;
+            }
+
+            double
+            getPitch(void)
+            {
+                return m_imu_data.pitch;
+            }
+
+            double
+            getRoll(void)
+            {
+                return m_imu_data.roll;
+            }
+
+            double
+            getAx(void)
+            {
+                return m_imu_data.ax;
+            }
+
+            double
+            getAy(void)
+            {
+                return m_imu_data.ay;
+            }
+
+            double
+            getAz(void)
+            {
+                return m_imu_data.az;
+            }
+
+            double
+            getGx(void)
+            {
+                return m_imu_data.gx;
+            }
+
+            double
+            getGy(void)
+            {
+                return m_imu_data.gy;
+            }
+
+            double
+            getGz(void)
+            {
+                return m_imu_data.gz;
+            }
+
+            double
+            getMx(void)
+            {
+                return m_imu_data.mx;
+            }
+
+            double
+            getMy(void)
+            {
+                return m_imu_data.my;
+            }
+
+            double
+            getMz(void)
+            {
+                return m_imu_data.mz;
+            }
+
+            double
+            getIMUTemp(void)
+            {
+                return m_imu_data.temp;
+            }
+
             void
             bauxMachine(void)
             {
@@ -148,15 +238,14 @@ namespace UserInterfaces
                         }
                         else if (std::strstr(bfrUart, "$IMU,") != NULL)
                         {
-                            //parse imu data
-                            m_task->inf("%s", bfrUart);
+                            parseIMUData(bfrUart);
                         }
                         else if (std::strstr(bfrUart, "$SWITCH,") != NULL)
                         {
                             int switch_value;
                             std::sscanf(bfrUart, "$SWITCH,%d,*", &switch_value);
                             m_task->war("Switch State: %d", switch_value);
-                            if(switch_value == 0 || switch_value == 1)
+                            if (switch_value == 0 || switch_value == 1)
                                 m_is_switch_on = (bool)switch_value;
                         }
                     }
@@ -168,6 +257,23 @@ namespace UserInterfaces
             }
 
         private:
+            struct IMUData
+            {
+                double roll;
+                double pitch;
+                double yaw;
+                double ax;
+                double ay;
+                double az;
+                double gx;
+                double gy;
+                double gz;
+                double mx;
+                double my;
+                double mz;
+                double temp;
+            };
+
             //! Parent task.
             DUNE::Tasks::Task *m_task;
             //! Serial Object
@@ -180,6 +286,10 @@ namespace UserInterfaces
             unsigned m_baud;
             //! Switch State
             bool m_is_switch_on;
+            //! IMU Data
+            IMUData m_imu_data;
+            //! Flag to control new imu data
+            bool m_new_imu_data;
 
             char
             calcCRC8(char *data_in)
@@ -229,6 +339,42 @@ namespace UserInterfaces
                 {
                     return false;
                 }
+            }
+
+            void
+            parseIMUData(char* imu_data_input)
+            {
+                // parse imu data
+                //m_task->inf("%s", imu_data_input);
+                std::sscanf(imu_data_input, "$IMU,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,*%*s", 
+                            &m_imu_data.yaw, &m_imu_data.pitch, &m_imu_data.roll,
+                            &m_imu_data.ax, &m_imu_data.ay, &m_imu_data.az,
+                            &m_imu_data.gx, &m_imu_data.gy, &m_imu_data.gz,
+                            &m_imu_data.mx, &m_imu_data.my, &m_imu_data.mz,
+                            &m_imu_data.temp);
+                
+                m_imu_data.yaw = Angles::radians(m_imu_data.yaw);
+                m_imu_data.pitch = Angles::radians(m_imu_data.pitch);
+                m_imu_data.roll = Angles::radians(m_imu_data.roll);
+
+                m_imu_data.ax = Math::c_gravity * (m_imu_data.ax * 1000.0);
+                m_imu_data.ay = Math::c_gravity * (m_imu_data.ay * 1000.0) * -1;
+                m_imu_data.az = Math::c_gravity * (m_imu_data.az * 1000.0) * -1;
+
+                m_imu_data.gx = Angles::radians(m_imu_data.gx);
+                m_imu_data.gy = Angles::radians(m_imu_data.gy);
+                m_imu_data.gz = Angles::radians(m_imu_data.gz);
+
+                m_imu_data.mx = Angles::radians(m_imu_data.mx * 1000.0);
+                m_imu_data.my = Angles::radians(m_imu_data.my * 1000.0);
+                m_imu_data.mz = Angles::radians(m_imu_data.mz * 1000.0);
+
+                m_task->debug("YAW: %f | PITCH: %f | ROLL: %f", m_imu_data.yaw, m_imu_data.pitch, m_imu_data.roll);
+                m_task->debug("AX: %f | AY: %f | AZ: %f", m_imu_data.ax, m_imu_data.ay, m_imu_data.az);
+                m_task->debug("GX: %f | GY: %f | GZ: %f", m_imu_data.gx, m_imu_data.gy, m_imu_data.gz);
+                m_task->debug("MX: %f | MY: %f | MZ: %f", m_imu_data.mx, m_imu_data.my, m_imu_data.mz);
+                m_task->debug("IMU TEMP: %f", m_imu_data.temp);
+                m_new_imu_data = true;
             }
         };
     }
