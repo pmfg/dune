@@ -77,6 +77,16 @@ namespace UserInterfaces
       bool m_first_run;
       //! Power operation.
       IMC::PowerOperation m_pwr_op;
+      //! IMC - IMU Data
+      IMC::EulerAngles m_euler_angles;
+      //! Magnetic field message.
+      IMC::MagneticField m_mag;
+      //! Acceleration message.
+      IMC::Acceleration m_accel;
+      //! AngularVelocity message
+      IMC::AngularVelocity m_gyro;
+      //! Temperature.
+      IMC::Temperature m_temp;
       // Task Arguments.
       Arguments m_args;
 
@@ -232,6 +242,39 @@ namespace UserInterfaces
       }
 
       void
+      dispatchIMUData(void)
+      {
+        m_euler_angles.setTimeStamp();
+        m_euler_angles.psi = m_baux->getYaw();
+        m_euler_angles.theta = m_baux->getPitch();
+        m_euler_angles.phi = m_baux->getRoll();
+        m_euler_angles.psi_magnetic = m_baux->getYaw();
+        dispatch(m_euler_angles, DF_KEEP_TIME);
+
+        m_accel.setTimeStamp(m_euler_angles.getTimeStamp());
+        m_accel.x = m_baux->getAx();
+        m_accel.y = m_baux->getAy();
+        m_accel.z = m_baux->getAz();
+        dispatch(m_accel, DF_KEEP_TIME);
+
+        m_gyro.setTimeStamp(m_euler_angles.getTimeStamp());
+        m_gyro.x = m_baux->getGx();
+        m_gyro.y = m_baux->getGy();
+        m_gyro.z = m_baux->getGz();
+        dispatch(m_gyro, DF_KEEP_TIME);
+
+        m_mag.setTimeStamp(m_euler_angles.getTimeStamp());
+        m_mag.x = m_baux->getMx();
+        m_mag.y = m_baux->getMy();
+        m_mag.z = m_baux->getMz();
+        dispatch(m_mag, DF_KEEP_TIME);
+
+        m_temp.setTimeStamp(m_euler_angles.getTimeStamp());
+        m_temp.value = m_baux->getIMUTemp();
+        dispatch(m_temp, DF_KEEP_TIME);
+      }
+
+      void
       onMain(void)
       {
         bool is_powero_off = false;
@@ -252,6 +295,11 @@ namespace UserInterfaces
           m_led->ledStateUpdate();
           m_baux->bauxMachine();
 
+          if(m_baux->newIMUData())
+          {
+            dispatchIMUData();
+          }
+
           if (m_baux->isSwitchOn() && !is_powero_off)
           {
             war("%s", DTR(Status::getString(Status::CODE_POWER_DOWN)));
@@ -267,7 +315,13 @@ namespace UserInterfaces
             if(m_wdog.overflow())
             {
               war("Powering off CPU");
-              (void) system("poweroff");
+              if (std::system("poweroff") == -1)
+              {
+                setEntityState(IMC::EntityState::ESTA_ERROR, Status::CODE_INTERNAL_ERROR);
+                err(DTR("failed to execute poweroff command"));
+                m_wdog.setTop(1);
+                m_wdog.reset();
+              }
             }
           }
         }
