@@ -62,6 +62,9 @@ namespace UserInterfaces
                 m_baud = baud_uart;
                 m_is_switch_on = false;
                 m_new_imu_data = false;
+                for(uint8_t i = 0; i < 3; i++)
+                    m_accel_zero[i] = 0;
+                m_first_read = true;
                 try
                 {
                     m_uart = new SerialPort(m_device, m_baud);
@@ -290,6 +293,10 @@ namespace UserInterfaces
             IMUData m_imu_data;
             //! Flag to control new imu data
             bool m_new_imu_data;
+            //! Accel init_zero
+            double m_accel_zero[3];
+            //! First read of imu values
+            bool m_first_read;
 
             char
             calcCRC8(char *data_in)
@@ -357,9 +364,26 @@ namespace UserInterfaces
                 m_imu_data.pitch = Angles::radians(m_imu_data.pitch);
                 m_imu_data.roll = Angles::radians(m_imu_data.roll);
 
-                m_imu_data.ax = Math::c_gravity * (m_imu_data.ax * 1000.0);
-                m_imu_data.ay = Math::c_gravity * (m_imu_data.ay * 1000.0) * -1;
-                m_imu_data.az = Math::c_gravity * (m_imu_data.az * 1000.0) * -1;
+                if(m_first_read)
+                {
+                    m_accel_zero[0] = m_imu_data.ax;
+                    m_accel_zero[1] = m_imu_data.ay;
+                    m_accel_zero[2] = m_imu_data.az;
+                    m_first_read = false;
+                    m_task->debug("i:%f | %f | %f", m_accel_zero[0], m_accel_zero[1], m_accel_zero[2]);
+                }
+                else
+                {
+                    double ax = std::fabs(std::fabs(m_imu_data.ax) - std::fabs(m_accel_zero[0]));
+                    double ay = std::fabs(std::fabs(m_imu_data.ay) - std::fabs(m_accel_zero[1]));
+                    double az = std::fabs(std::fabs(m_imu_data.az) - std::fabs(m_accel_zero[2]));
+                    m_task->debug("a:%f | %f | %f", m_imu_data.ax, m_imu_data.ay, m_imu_data.az);
+                    m_task->debug("b:%f | %f | %f", ax, ay, az);
+                    m_imu_data.ax = Math::c_gravity * ax;
+                    m_imu_data.ay = Math::c_gravity * ay;
+                    m_imu_data.az = Math::c_gravity * az;
+                    m_task->debug("c:%f | %f | %f", m_imu_data.ax, m_imu_data.ay, m_imu_data.az);
+                }
 
                 m_imu_data.gx = Angles::radians(m_imu_data.gx);
                 m_imu_data.gy = Angles::radians(m_imu_data.gy);
