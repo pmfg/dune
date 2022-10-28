@@ -350,6 +350,7 @@ namespace UserInterfaces
                     m_led_state = state;
                     m_last_led_state = state;
                     m_counter_state = 0;
+                    m_wdog.setTop(0.001);
                 }
             }
 
