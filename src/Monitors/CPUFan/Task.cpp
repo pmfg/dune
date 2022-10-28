@@ -49,6 +49,8 @@ namespace Monitors
       double max_temp;
       // Min temp
       double min_temp;
+      // Entity Label of temperature to read
+      std::string temp_to_read;
     };
 
     struct Task: public DUNE::Tasks::Task
@@ -80,6 +82,11 @@ namespace Monitors
         param("Min temperature", m_args.min_temp)
           .defaultValue("54")
           .description("Min temperature to turn fan off");
+
+        param("Entity Label - Temperature", m_args.temp_to_read)
+          .defaultValue("Mainboard (Core)")
+          .description("Entity Label - Temperature");
+
         bind<IMC::Temperature>(this);
       }
 
@@ -110,7 +117,10 @@ namespace Monitors
         if (msg->getSource() != getSystemId())
           return;
 
-        debug("temp: %f", msg->value);
+        if (resolveEntity(msg->getSourceEntity()).c_str() != m_args.temp_to_read)
+          return;
+
+        debug("temp: %f %s %s", msg->value, resolveEntity(msg->getSourceEntity()).c_str(), m_args.temp_to_read.c_str());
         if(m_fan_on)
         {
           if(msg->value <= m_args.min_temp)
