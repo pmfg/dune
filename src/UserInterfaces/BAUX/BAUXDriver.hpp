@@ -244,7 +244,7 @@ namespace UserInterfaces
                         {
                             int switch_value;
                             std::sscanf(bfrUart, "$SWITCH,%d,*", &switch_value);
-                            m_task->war("Switch State: %d", switch_value);
+                            m_task->debug("Switch State: %d", switch_value);
                             if (switch_value == 0 || switch_value == 1)
                                 m_is_switch_on = (bool)switch_value;
                         }

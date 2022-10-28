@@ -130,7 +130,6 @@ namespace UserInterfaces
 
         // Register message listeners.
         bind<IMC::VehicleState>(this);
-        bind<IMC::PowerOperation>(this);
         bind<IMC::EntityState>(this);
         bind<IMC::GpsFix>(this);
       }
@@ -155,8 +154,6 @@ namespace UserInterfaces
           for(uint8_t i = 0; i < c_max_led; i++)
           {
             m_led->turnLedOff(i);
-            //Memory::clear(m_led);
-            //Memory::clear(m_baux);
           }
         }
       }
@@ -187,25 +184,6 @@ namespace UserInterfaces
         ////m_critical_error = true;
         if(m_first_run)
           m_wdog.reset();
-      }
-
-      void
-      consume(const IMC::PowerOperation* msg)
-      {
-        if (msg->getDestination() != getSystemId() || m_first_run)
-          return;
-
-        inf("PowerOperation %d", msg->op);
-
-        switch (msg->op)
-        {
-          case IMC::PowerOperation::POP_PWR_DOWN_IP:
-            m_led->setState(LedMachine::LED_STATE_POWEROFF);
-            break;
-          case IMC::PowerOperation::POP_PWR_DOWN_ABORTED:
-            m_led->setState(LedMachine::LED_STATE_NORMAL);
-            break;
-        }
       }
 
       void
@@ -304,17 +282,20 @@ namespace UserInterfaces
           {
             war("%s", DTR(Status::getString(Status::CODE_POWER_DOWN)));
             m_pwr_op.op = IMC::PowerOperation::POP_PWR_DOWN_IP;
-            dispatch(m_pwr_op);
+            dispatch(m_pwr_op, DF_LOOP_BACK);
             is_powero_off = true;
+            m_led->setState(LedMachine::LED_STATE_POWEROFF);
             m_wdog.setTop(5);
             m_wdog.reset();
-            onResourceRelease();
           }
           else if(is_powero_off)
           {
             if(m_wdog.overflow())
             {
               war("Powering off CPU");
+              onResourceRelease();
+              m_led->turnLedOn(BAUX::BAUXDriver::LED_RED);
+              Time::Delay::wait(2);
               if (std::system("poweroff") == -1)
               {
                 setEntityState(IMC::EntityState::ESTA_ERROR, Status::CODE_INTERNAL_ERROR);
