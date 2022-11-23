@@ -151,6 +151,7 @@ namespace UserInterfaces
         if(m_is_active)
         {
           m_baux->setFlowOfIMUData(false);
+          m_baux->setFlowOfINAData(false);
           for(uint8_t i = 0; i < c_max_led; i++)
           {
             m_led->turnLedOff(i);
@@ -253,6 +254,42 @@ namespace UserInterfaces
       }
 
       void
+      dispatchINAData(void)
+      {
+        inf("Channel 1: %.3fV | %.3fA", m_baux->getINAVoltage(0), m_baux->getINACurrent(0));
+        inf("Channel 2: %.3fV | %.3fA", m_baux->getINAVoltage(1), m_baux->getINACurrent(1));
+        inf("Channel 3: %.3fV | %.3fA\n", m_baux->getINAVoltage(2), m_baux->getINACurrent(2));
+        /*m_euler_angles.setTimeStamp();
+        m_euler_angles.psi = m_baux->getYaw();
+        m_euler_angles.theta = m_baux->getPitch();
+        m_euler_angles.phi = m_baux->getRoll();
+        m_euler_angles.psi_magnetic = m_baux->getYaw();
+        dispatch(m_euler_angles, DF_KEEP_TIME);
+
+        m_accel.setTimeStamp(m_euler_angles.getTimeStamp());
+        m_accel.x = m_baux->getAx();
+        m_accel.y = m_baux->getAy();
+        m_accel.z = m_baux->getAz();
+        dispatch(m_accel, DF_KEEP_TIME);
+
+        m_gyro.setTimeStamp(m_euler_angles.getTimeStamp());
+        m_gyro.x = m_baux->getGx();
+        m_gyro.y = m_baux->getGy();
+        m_gyro.z = m_baux->getGz();
+        dispatch(m_gyro, DF_KEEP_TIME);
+
+        m_mag.setTimeStamp(m_euler_angles.getTimeStamp());
+        m_mag.x = m_baux->getMx();
+        m_mag.y = m_baux->getMy();
+        m_mag.z = m_baux->getMz();
+        dispatch(m_mag, DF_KEEP_TIME);
+
+        m_temp.setTimeStamp(m_euler_angles.getTimeStamp());
+        m_temp.value = m_baux->getIMUTemp();
+        dispatch(m_temp, DF_KEEP_TIME);*/
+      }
+
+      void
       onMain(void)
       {
         bool is_powero_off = false;
@@ -266,6 +303,7 @@ namespace UserInterfaces
             {
               setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_ACTIVE);
               m_baux->setFlowOfIMUData(true);
+              m_baux->setFlowOfINAData(true);
               m_first_run = false;
             }
           }
@@ -276,6 +314,10 @@ namespace UserInterfaces
           if(m_baux->newIMUData())
           {
             dispatchIMUData();
+          }
+          if(m_baux->newINAData())
+          {
+            dispatchINAData();
           }
 
           if (m_baux->isSwitchOn() && !is_powero_off)
