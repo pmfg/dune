@@ -46,6 +46,7 @@ namespace UserInterfaces
     using DUNE_NAMESPACES;
 
     static const int c_max_led = 3;
+    static const uint8_t c_max_channels = 3;
 
     struct Arguments
     {
@@ -57,6 +58,8 @@ namespace UserInterfaces
       int min_sat;
       // Min HDop to validate GPSFix
       float min_hdop;
+      //! Channel entity labels
+      std::string channels_elabels[c_max_channels];
     };
 
     struct Task: public DUNE::Tasks::Task
@@ -87,6 +90,14 @@ namespace UserInterfaces
       IMC::AngularVelocity m_gyro;
       //! Temperature.
       IMC::Temperature m_temp;
+      //! Voltage message
+      IMC::Voltage m_volt[c_max_channels];
+      //! Voltage of batteries message
+      IMC::Voltage m_bat_volt;
+      //! Current message
+      IMC::Current m_amp[c_max_channels];
+      //! Fuel Level message
+      IMC::FuelLevel m_fuel;
       // Task Arguments.
       Arguments m_args;
 
@@ -112,26 +123,53 @@ namespace UserInterfaces
           .defaultValue("1.5")
           .description("Minimum HDop for GPSFix state");
 
-        /*for (unsigned i = 0; i < c_max_led; ++i)
+        // Extract Channels entity label
+        for (uint8_t i = 1; i < c_max_channels; ++i)
         {
-          std::string option = String::str("LED %u - Invert Output", i);
-          param(option, m_args.led_invert[i])
-          .defaultValue("false")
-          .description("Led invert output");
-
-          option = String::str("LED %u - PinOut", i);
-          param(option, m_args.led_pin[i])
-          .description("Led pin");
-
-          option = String::str("LED %u - Name", i);
-          param(option, m_args.led_name[i])
-          .description("Led Name");
-        }*/
+          std::string option = String::str("Channel Name %u", i);
+          param(option, m_args.channels_elabels[i - 1])
+          .defaultValue("")
+          .description("Channel Entity Label");
+        }
 
         // Register message listeners.
         bind<IMC::VehicleState>(this);
         bind<IMC::EntityState>(this);
         bind<IMC::GpsFix>(this);
+      }
+
+      //! Reserve entity identifiers.
+      void
+      onEntityReservation(void)
+      {
+        for (uint8_t i = 0; i < c_max_channels; ++i)
+        {
+
+          if (m_args.channels_elabels[i].empty())
+            continue;
+
+          m_volt[i].setSourceEntity(getEid(m_args.channels_elabels[i]));
+          m_amp[i].setSourceEntity(getEid(m_args.channels_elabels[i]));
+        }
+
+        m_bat_volt.setSourceEntity(getEid("Batteries"));
+      }
+
+      unsigned
+      getEid(std::string label)
+      {
+        unsigned eid = 0;
+        try
+        {
+          eid = resolveEntity(label);
+        }
+        catch (Entities::EntityDataBase::NonexistentLabel& e)
+        {
+          (void)e;
+          eid = reserveEntity(label);
+        }
+
+        return eid;
       }
 
       void
@@ -256,37 +294,34 @@ namespace UserInterfaces
       void
       dispatchINAData(void)
       {
-        inf("Channel 1: %.3fV | %.3fA", m_baux->getINAVoltage(0), m_baux->getINACurrent(0));
-        inf("Channel 2: %.3fV | %.3fA", m_baux->getINAVoltage(1), m_baux->getINACurrent(1));
-        inf("Channel 3: %.3fV | %.3fA\n", m_baux->getINAVoltage(2), m_baux->getINACurrent(2));
-        /*m_euler_angles.setTimeStamp();
-        m_euler_angles.psi = m_baux->getYaw();
-        m_euler_angles.theta = m_baux->getPitch();
-        m_euler_angles.phi = m_baux->getRoll();
-        m_euler_angles.psi_magnetic = m_baux->getYaw();
-        dispatch(m_euler_angles, DF_KEEP_TIME);
+        debug("Channel 1: %.3fV | %.3fA", m_baux->getINAVoltage(0), m_baux->getINACurrent(0));
+        debug("Channel 2: %.3fV | %.3fA", m_baux->getINAVoltage(1), m_baux->getINACurrent(1));
+        debug("Channel 3: %.3fV | %.3fA\n", m_baux->getINAVoltage(2), m_baux->getINACurrent(2));
 
-        m_accel.setTimeStamp(m_euler_angles.getTimeStamp());
-        m_accel.x = m_baux->getAx();
-        m_accel.y = m_baux->getAy();
-        m_accel.z = m_baux->getAz();
-        dispatch(m_accel, DF_KEEP_TIME);
+        m_volt[0].setTimeStamp();
+        double time_stamp = m_volt[0].getTimeStamp();
+        for(uint8_t i = 0; i < c_max_channels; i++)
+        {
+          m_volt[i].setTimeStamp(time_stamp);
+          m_volt[i].value = m_baux->getINAVoltage(i);
+          m_amp[i].setTimeStamp(time_stamp);
+          m_amp[i].value = m_baux->getINACurrent(i);
+          dispatch(m_volt[i], DF_KEEP_TIME);
+          dispatch(m_amp[i], DF_KEEP_TIME);
 
-        m_gyro.setTimeStamp(m_euler_angles.getTimeStamp());
-        m_gyro.x = m_baux->getGx();
-        m_gyro.y = m_baux->getGy();
-        m_gyro.z = m_baux->getGz();
-        dispatch(m_gyro, DF_KEEP_TIME);
+          if(m_args.channels_elabels[i].find("Batteries") != std::string::npos)
+          {
+            m_bat_volt.setTimeStamp(time_stamp);
+            m_bat_volt.value = m_baux->getINAVoltage(i);
+            dispatch(m_bat_volt, DF_KEEP_TIME);
+          }
+        }
 
-        m_mag.setTimeStamp(m_euler_angles.getTimeStamp());
-        m_mag.x = m_baux->getMx();
-        m_mag.y = m_baux->getMy();
-        m_mag.z = m_baux->getMz();
-        dispatch(m_mag, DF_KEEP_TIME);
-
-        m_temp.setTimeStamp(m_euler_angles.getTimeStamp());
-        m_temp.value = m_baux->getIMUTemp();
-        dispatch(m_temp, DF_KEEP_TIME);*/
+        //debug values for fuel level
+        m_fuel.setTimeStamp(time_stamp);
+        m_fuel.value = 85;
+        m_fuel.confidence = 100;
+        dispatch(m_fuel, DF_KEEP_TIME);
       }
 
       void
