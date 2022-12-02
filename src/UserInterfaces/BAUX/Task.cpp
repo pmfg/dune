@@ -124,7 +124,7 @@ namespace UserInterfaces
           .description("Minimum HDop for GPSFix state");
 
         // Extract Channels entity label
-        for (uint8_t i = 1; i < c_max_channels; ++i)
+        for (uint8_t i = 1; i <= c_max_channels; ++i)
         {
           std::string option = String::str("Channel Name %u", i);
           param(option, m_args.channels_elabels[i - 1])
@@ -153,6 +153,7 @@ namespace UserInterfaces
         }
 
         m_bat_volt.setSourceEntity(getEid("Batteries"));
+        m_temp.setSourceEntity(getEid("IMU"));
       }
 
       unsigned
@@ -337,6 +338,9 @@ namespace UserInterfaces
             if(m_wdog.overflow())
             {
               setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_ACTIVE);
+              char entity_state_text[128];
+              std::sprintf(entity_state_text, "active | %s | %d", m_args.uart_dev.c_str(), m_args.uart_baud);
+              setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(entity_state_text)));
               m_baux->setFlowOfIMUData(true);
               m_baux->setFlowOfINAData(true);
               m_first_run = false;
