@@ -112,7 +112,7 @@ namespace Sensors
       //! Reader thread.
       Reader* m_reader;
       //! Buffer forEntityState
-      char m_bufer_entity[64];
+      char m_bufer_entity[256];
 
       Task(const std::string& name, Tasks::Context& ctx):
         Hardware::BasicDeviceDriver(name, ctx),
@@ -527,12 +527,12 @@ namespace Sensors
           std::memset(&m_bufer_entity, '\0', sizeof(m_bufer_entity));
           if (m_fix.validity & IMC::GpsFix::GFV_VALID_POS)
           {
-            std::sprintf(m_bufer_entity, "active - hdop: %.2f , Sat: %d", m_fix.hdop, m_fix.satellites);
+            std::sprintf(m_bufer_entity, "active | %s | %d | hdop: %.2f , Sat: %d", m_args.uart_dev.c_str(), m_args.uart_baud, m_fix.hdop, m_fix.satellites);
             setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(m_bufer_entity)));
           }
           else
           {
-            std::sprintf(m_bufer_entity, "wait gps fix - hdop: %.2f , Sat: %d", m_fix.hdop, m_fix.satellites);
+            std::sprintf(m_bufer_entity, "wait gps fix | %s | %d | hdop: %.2f , Sat: %d", m_args.uart_dev.c_str(), m_args.uart_baud, m_fix.hdop, m_fix.satellites);
             setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(m_bufer_entity)));
           }
         }
