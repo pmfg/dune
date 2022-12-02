@@ -380,6 +380,10 @@ namespace UserInterfaces
                 m_wdog.setTop(1);
                 m_wdog.reset();
               }
+              else
+              {
+                while (!stopping());
+              }
             }
           }
         }
