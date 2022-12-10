@@ -46,7 +46,7 @@ namespace UserInterfaces
     using DUNE_NAMESPACES;
 
     static const int c_max_led = 3;
-    static const uint8_t c_max_channels = 3;
+    static const uint8_t c_max_channels = 6;
 
     struct Arguments
     {
@@ -293,31 +293,61 @@ namespace UserInterfaces
       }
 
       void
-      dispatchINAData(void)
+      dispatchINAData(uint8_t ina_id)
       {
-        debug("Channel 1: %.3fV | %.3fA", m_baux->getINAVoltage(0), m_baux->getINACurrent(0));
-        debug("Channel 2: %.3fV | %.3fA", m_baux->getINAVoltage(1), m_baux->getINACurrent(1));
-        debug("Channel 3: %.3fV | %.3fA\n", m_baux->getINAVoltage(2), m_baux->getINACurrent(2));
-
         m_volt[0].setTimeStamp();
         double time_stamp = m_volt[0].getTimeStamp();
-        for(uint8_t i = 0; i < c_max_channels; i++)
+        switch (ina_id)
         {
-          m_volt[i].setTimeStamp(time_stamp);
-          m_volt[i].value = m_baux->getINAVoltage(i);
-          m_amp[i].setTimeStamp(time_stamp);
-          m_amp[i].value = m_baux->getINACurrent(i);
-          dispatch(m_volt[i], DF_KEEP_TIME);
-          dispatch(m_amp[i], DF_KEEP_TIME);
+          case 0:
+            debug("Channel 1: %.3fV | %.3fA", m_baux->getINAVoltage(0), m_baux->getINACurrent(0));
+            debug("Channel 2: %.3fV | %.3fA", m_baux->getINAVoltage(1), m_baux->getINACurrent(1));
+            debug("Channel 3: %.3fV | %.3fA\n", m_baux->getINAVoltage(2), m_baux->getINACurrent(2));
 
-          if(m_args.channels_elabels[i].find("Batteries") != std::string::npos)
-          {
-            m_bat_volt.setTimeStamp(time_stamp);
-            m_bat_volt.value = m_baux->getINAVoltage(i);
-            dispatch(m_bat_volt, DF_KEEP_TIME);
-          }
+            for(uint8_t i = 0; i < 3; i++)
+            {
+              m_volt[i].setTimeStamp(time_stamp);
+              m_volt[i].value = m_baux->getINAVoltage(i);
+              m_amp[i].setTimeStamp(time_stamp);
+              m_amp[i].value = m_baux->getINACurrent(i);
+              dispatch(m_volt[i], DF_KEEP_TIME);
+              dispatch(m_amp[i], DF_KEEP_TIME);
+
+              if(m_args.channels_elabels[i].find("Batteries") != std::string::npos)
+              {
+                m_bat_volt.setTimeStamp(time_stamp);
+                m_bat_volt.value = m_baux->getINAVoltage(i);
+                dispatch(m_bat_volt, DF_KEEP_TIME);
+              }
+            }
+            break;
+
+          case 1:
+            debug("Channel 4: %.3fV | %.3fA", m_baux->getINAVoltage(3), m_baux->getINACurrent(3));
+            debug("Channel 5: %.3fV | %.3fA", m_baux->getINAVoltage(4), m_baux->getINACurrent(4));
+            debug("Channel 6: %.3fV | %.3fA\n", m_baux->getINAVoltage(5), m_baux->getINACurrent(5));
+
+            for(uint8_t i = 3; i < 6; i++)
+            {
+              m_volt[i].setTimeStamp(time_stamp);
+              m_volt[i].value = m_baux->getINAVoltage(i);
+              m_amp[i].setTimeStamp(time_stamp);
+              m_amp[i].value = m_baux->getINACurrent(i);
+              dispatch(m_volt[i], DF_KEEP_TIME);
+              dispatch(m_amp[i], DF_KEEP_TIME);
+
+              if(m_args.channels_elabels[i].find("Batteries") != std::string::npos)
+              {
+                m_bat_volt.setTimeStamp(time_stamp);
+                m_bat_volt.value = m_baux->getINAVoltage(i);
+                dispatch(m_bat_volt, DF_KEEP_TIME);
+              }
+            }
+            break;
+          
+          default:
+            break;
         }
-
         //debug values for fuel level
         m_fuel.setTimeStamp(time_stamp);
         m_fuel.value = 85;
@@ -354,9 +384,13 @@ namespace UserInterfaces
           {
             dispatchIMUData();
           }
-          if(m_baux->newINAData())
+          if(m_baux->newINAData(0))
           {
-            dispatchINAData();
+            dispatchINAData(0);
+          }
+          if(m_baux->newINAData(1))
+          {
+            dispatchINAData(1);
           }
 
           if (m_baux->isSwitchOn() && !is_powero_off)

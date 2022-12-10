@@ -39,7 +39,8 @@ namespace UserInterfaces
     {
         using DUNE_NAMESPACES;
 
-        static const int c_max_power_channels = 3;
+        static const int c_max_power_channels = 6;
+        static const int c_max_ina = 2;
 
         class BAUXDriver
         {
@@ -64,7 +65,8 @@ namespace UserInterfaces
                 m_baud = baud_uart;
                 m_is_switch_on = false;
                 m_new_imu_data = false;
-                m_new_ina_data = false;
+                m_new_ina_data[0] = false;
+                m_new_ina_data[1] = false;
                 for(uint8_t i = 0; i < 3; i++)
                     m_accel_zero[i] = 0;
                 m_first_read = true;
@@ -236,20 +238,20 @@ namespace UserInterfaces
             }
 
             bool
-            newINAData(void)
+            newINAData(uint8_t ina_id)
             {
-                if(m_new_ina_data)
+                if(m_new_ina_data[ina_id])
                 {
-                    m_new_ina_data = false;
+                    m_new_ina_data[ina_id] = false;
                     return true;
                 }
-                return m_new_ina_data;
+                return m_new_ina_data[ina_id];
             }
 
             float
             getINAVoltage(uint8_t channel_id)
             {
-                if(channel_id <= 2)
+                if(channel_id <= c_max_power_channels)
                     return m_ina_data[channel_id].voltage;
                 else
                     return -1;
@@ -258,7 +260,7 @@ namespace UserInterfaces
             float
             getINACurrent(uint8_t channel_id)
             {
-                if(channel_id <= 2)
+                if(channel_id <= c_max_power_channels)
                     return m_ina_data[channel_id].current;
                 else
                     return -1;
@@ -284,9 +286,21 @@ namespace UserInterfaces
                         {
                             parseIMUData(bfrUart);
                         }
-                        else if (std::strstr(bfrUart, "$INA,") != NULL)
+                        else if (std::strstr(bfrUart, "$INA1,") != NULL)
                         {
-                            parseINAData(bfrUart);
+                            parseINAData(bfrUart, 1);
+                        }
+                        else if (std::strstr(bfrUart, "$INA1_ERRO,") != NULL)
+                        {
+                            m_task->war("INA1 in error, no data power from INA1");
+                        }
+                        else if (std::strstr(bfrUart, "$INA2,") != NULL)
+                        {
+                            parseINAData(bfrUart, 2);
+                        }
+                        else if (std::strstr(bfrUart, "$INA2_ERRO,") != NULL)
+                        {
+                            m_task->war("INA2 in error, no data power from INA1");
                         }
                         else if (std::strstr(bfrUart, "$SWITCH,") != NULL)
                         {
@@ -347,7 +361,7 @@ namespace UserInterfaces
             //! Flag to control new imu data
             bool m_new_imu_data;
             //! Flag to control new power ina data
-            bool m_new_ina_data;
+            bool m_new_ina_data[c_max_ina];
             //! Accel init_zero
             double m_accel_zero[3];
             //! First read of imu values
@@ -458,20 +472,40 @@ namespace UserInterfaces
             }
 
             void
-            parseINAData(char* ina_data_input)
+            parseINAData(char* ina_data_input, uint8_t ina_id)
             {
                 // TODO filter erro message
                 // parse ina data
                 //m_task->inf("%s", ina_data_input);
-                std::sscanf(ina_data_input, "$INA,%lf,%lf,%lf,%lf,%lf,%lf,*%*s", 
+                switch (ina_id)
+                {
+                  case 1:
+                    std::sscanf(ina_data_input, "$INA1,%lf,%lf,%lf,%lf,%lf,%lf,*%*s", 
                             &m_ina_data[0].voltage, &m_ina_data[0].current,
                             &m_ina_data[1].voltage, &m_ina_data[1].current,
                             &m_ina_data[2].voltage, &m_ina_data[2].current);
 
-                m_task->debug("Channel 1: %.3fV | %.3fA", m_ina_data[0].voltage, m_ina_data[0].current);
-                m_task->debug("Channel 2: %.3fV | %.3fA", m_ina_data[1].voltage, m_ina_data[1].current);
-                m_task->debug("Channel 3: %.3fV | %.3fA", m_ina_data[2].voltage, m_ina_data[2].current);
-                m_new_ina_data = true;
+                    m_task->debug("Channel 1: %.3fV | %.3fA", m_ina_data[0].voltage, m_ina_data[0].current);
+                    m_task->debug("Channel 2: %.3fV | %.3fA", m_ina_data[1].voltage, m_ina_data[1].current);
+                    m_task->debug("Channel 3: %.3fV | %.3fA", m_ina_data[2].voltage, m_ina_data[2].current);
+                    m_new_ina_data[0] = true;
+                    break;
+
+                  case 2:
+                    std::sscanf(ina_data_input, "$INA2,%lf,%lf,%lf,%lf,%lf,%lf,*%*s", 
+                            &m_ina_data[3].voltage, &m_ina_data[3].current,
+                            &m_ina_data[4].voltage, &m_ina_data[4].current,
+                            &m_ina_data[5].voltage, &m_ina_data[5].current);
+
+                    m_task->debug("Channel 4: %.3fV | %.3fA", m_ina_data[3].voltage, m_ina_data[3].current);
+                    m_task->debug("Channel 5: %.3fV | %.3fA", m_ina_data[4].voltage, m_ina_data[4].current);
+                    m_task->debug("Channel 6: %.3fV | %.3fA", m_ina_data[5].voltage, m_ina_data[5].current);
+                    m_new_ina_data[1] = true;
+                    break;
+                  
+                  default:
+                    break;
+                }
             }
 
         };
