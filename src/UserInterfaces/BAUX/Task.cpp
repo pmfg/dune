@@ -60,6 +60,8 @@ namespace UserInterfaces
       float min_hdop;
       //! Channel entity labels
       std::string channels_elabels[c_max_channels];
+      //! Timeout baux communication
+      float timeout_com_baux;
     };
 
     struct Task: public DUNE::Tasks::Task
@@ -76,6 +78,8 @@ namespace UserInterfaces
       bool m_is_active;
       //! Watchdog.
       Counter<double> m_wdog;
+      //! Watchdog for com to baux board
+      Counter<double> m_wdog_baux;
       //! Flag to control first run of task
       bool m_first_run;
       //! Power operation.
@@ -114,6 +118,10 @@ namespace UserInterfaces
         param("Serial Port - Baud Rate", m_args.uart_baud)
         .defaultValue("921600")
         .description("Serial port baudrate");
+
+        param("Timeout BAUX Communication", m_args.timeout_com_baux)
+          .defaultValue("3000")
+          .description("Timeout BAUX Communication in seconds.");
 
         param("Minimum Satellites for GPSFix state", m_args.min_sat)
           .defaultValue("5")
@@ -179,6 +187,7 @@ namespace UserInterfaces
         m_pwr_op.setDestination(getSystemId());
         setEntityState(IMC::EntityState::ESTA_BOOT, Status::CODE_INIT);
         m_wdog.setTop(5000);
+        //m_wdog_baux.setTop(5000);
         m_baux = new BAUXDriver(this, m_args.uart_dev, m_args.uart_baud);
         m_led = new LedMachine(m_baux);
         m_baux->getFirmwareVersion();
@@ -373,6 +382,7 @@ namespace UserInterfaces
               setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(entity_state_text)));
               m_baux->setFlowOfIMUData(true);
               m_baux->setFlowOfINAData(true);
+              m_wdog_baux.setTop(m_args.timeout_com_baux);
               m_first_run = false;
             }
           }
@@ -380,17 +390,31 @@ namespace UserInterfaces
           m_led->ledStateUpdate();
           m_baux->bauxMachine();
 
-          if(m_baux->newIMUData())
+          if(!m_first_run)
           {
-            dispatchIMUData();
+            if(m_baux->newIMUData())
+            {
+              dispatchIMUData();
+              m_wdog_baux.reset();
+            }
+            if(m_baux->newINAData(0))
+            {
+              dispatchINAData(0);
+              m_wdog_baux.reset();
+            }
+            if(m_baux->newINAData(1))
+            {
+              dispatchINAData(1);
+              m_wdog_baux.reset();
+            }
           }
-          if(m_baux->newINAData(0))
+
+          if(m_wdog_baux.overflow() && !m_first_run)
           {
-            dispatchINAData(0);
-          }
-          if(m_baux->newINAData(1))
-          {
-            dispatchINAData(1);
+            m_first_run = true;
+            err("%s", DTR(Status::getString(CODE_COM_ERROR)));
+            setEntityState(IMC::EntityState::ESTA_ERROR, Status::CODE_COM_ERROR);
+            throw RestartNeeded(DTR(Status::getString(CODE_COM_ERROR)), 5);
           }
 
           if (m_baux->isSwitchOn() && !is_powero_off)
