@@ -127,12 +127,12 @@ namespace Monitors
           {
             m_fan_on = false;
             m_gpio_fan->setValue(0);
-            std::sprintf(m_bufer_entity, "active | F:off | V:%.1f | T:%.1f | D:%.1f", msg->value, m_args.max_temp, m_args.min_temp);
+            std::sprintf(m_bufer_entity, "active | F:off | T:%.1f | U:%.1f | D:%.1f", msg->value, m_args.max_temp, m_args.min_temp);
             setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(m_bufer_entity)));
           }
           else
           {
-            std::sprintf(m_bufer_entity, "active | F:on | V:%.1f | T:%.1f | D:%.1f", msg->value, m_args.max_temp, m_args.min_temp);
+            std::sprintf(m_bufer_entity, "active | F:on | T:%.1f | U:%.1f | D:%.1f", msg->value, m_args.max_temp, m_args.min_temp);
             setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(m_bufer_entity)));
           }
         }
@@ -142,12 +142,12 @@ namespace Monitors
           {
             m_fan_on = true;
             m_gpio_fan->setValue(1);
-            std::sprintf(m_bufer_entity, "active | F:on | V:%.1f | T:%.1f | D:%.1f", msg->value, m_args.max_temp, m_args.min_temp);
+            std::sprintf(m_bufer_entity, "active | F:on | T:%.1f | U:%.1f | D:%.1f", msg->value, m_args.max_temp, m_args.min_temp);
             setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(m_bufer_entity)));
           }
           else
           {
-            std::sprintf(m_bufer_entity, "active | F:off | V:%.1f | T:%.1f | D:%.1f", msg->value, m_args.max_temp, m_args.min_temp);
+            std::sprintf(m_bufer_entity, "active | F:off | T:%.1f | U:%.1f | D:%.1f", msg->value, m_args.max_temp, m_args.min_temp);
             setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(m_bufer_entity)));
           }
         }
