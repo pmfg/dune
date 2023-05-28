@@ -46,6 +46,7 @@ namespace Actuators
 
     class AUXDriver
     {
+    public:
       struct GPSData
       {
         int year;
@@ -63,8 +64,6 @@ namespace Actuators
         int sat;
         int valid_fix;
       };
-
-    public:
       AUXDriver(DUNE::Tasks::Task *task, std::string device_uart, unsigned baud_uart)
       {
         m_task = task;
