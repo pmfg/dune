@@ -74,6 +74,7 @@ namespace Actuators
         m_first_read = true;
         m_speed.motor_1 = 0;
         m_speed.motor_2 = 1;
+        m_hc_echo = 0;
         try
         {
           m_uart = new SerialPort(m_device, m_baud);
@@ -199,6 +200,11 @@ namespace Actuators
             {
               parseGPSData(bfrUart);
             }
+            else if (std::strstr(bfrUart, "$,d,") != NULL)
+            {
+              std::sscanf(bfrUart, "$,d,%d,*", &m_hc_echo);
+              m_task->debug("Distance HC: %.2f m", m_hc_echo/100.0);
+            }
           }
           else
           {
@@ -229,6 +235,12 @@ namespace Actuators
         m_uart->writeString(buildCmdMsg(cmd).c_str());
 
         return value_speed * 100;
+      }
+
+      float
+      getDistanceHC(void)
+      {
+        return m_hc_echo / 100.0;
       }
 
       struct GPSData gps;
@@ -266,6 +278,8 @@ namespace Actuators
       bool m_first_read;
       //! Struct to save motor speeds in percentage.
       MotorSpeed m_speed;
+      //! Echo Distance value
+      int m_hc_echo;
 
       char
       calcCRC8(char *data_in)

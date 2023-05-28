@@ -40,5 +40,6 @@
 #define BYTE_GPS_DATA         'g'
 #define BYTE_INA_DATA         'i'
 #define BYTE_RESET            'R'
+#define BYTE_DISTANCE         'd'
 
 #endif
