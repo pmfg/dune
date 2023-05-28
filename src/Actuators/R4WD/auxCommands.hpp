@@ -39,5 +39,6 @@
 #define BYTE_SET_SPEED        's'
 #define BYTE_GPS_DATA         'g'
 #define BYTE_INA_DATA         'i'
+#define BYTE_RESET            'R'
 
 #endif

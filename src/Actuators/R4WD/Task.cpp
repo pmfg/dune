@@ -46,8 +46,8 @@ namespace Actuators
     using DUNE_NAMESPACES;
 
     static const uint8_t c_max_channels = 3;
-    static const float c_period_ina = 0.7;
-    static const float c_period_gps = 1.0;
+    static const float c_period_data_get = 0.5;
+    static const int c_max_data_type_to_ask = 2;
 
     struct Arguments
     {
@@ -79,10 +79,8 @@ namespace Actuators
       Counter<double> m_wdog;
       //! Watchdog for com to baux board
       Counter<double> m_wdog_aux;
-      //! Watchdog for ask ina data
-      Counter<double> m_wdog_ina_data;
-      //! Watchdog for ask gps data
-      Counter<double> m_wdog_gps_data;
+      //! Watchdog for ask data
+      Counter<double> m_wdog_get_data;
       //! Flag to control first run of task
       bool m_first_run;
       //! Voltage message
@@ -93,14 +91,17 @@ namespace Actuators
       IMC::Current m_amp[c_max_channels];
       //! Fuel Level message
       IMC::FuelLevel m_fuel;
-      // Task Arguments.
+      //! Task Arguments.
       Arguments m_args;
+      //! Step counter for ask data.
+      int m_step_counter_data;
 
       Task(const std::string& name, Tasks::Context& ctx):
         Tasks::Task(name, ctx),
         m_critical_error(false),
         m_is_active(false),
-        m_first_run(true)
+        m_first_run(true),
+        m_step_counter_data(0)
       {
         param("Serial Port - Device", m_args.uart_dev)
         .defaultValue("")
@@ -218,12 +219,17 @@ namespace Actuators
       }
 
       void
+      dispatchGPSData(void)
+      {
+
+      }
+
+      void
       onMain(void)
       {
         m_is_active = true;
         m_wdog.setTop(5.0);
-        m_wdog_ina_data.setTop(c_period_ina);
-        m_wdog_gps_data.setTop(c_period_gps);
+        m_wdog_get_data.setTop(c_period_data_get);
         while (!stopping())
         {
           if(m_first_run)
@@ -243,9 +249,12 @@ namespace Actuators
 
           if(!m_first_run)
           {
-            if(m_aux->newINAData())
+            if(m_aux->newINAData() && m_aux->newGPSData())
             {
+              m_aux->clearNewGPSDataFlag();
+              m_aux->clearNewInaDataFlag();
               dispatchINAData();
+              dispatchGPSData();
               m_wdog_aux.reset();
             }
           }
@@ -253,21 +262,32 @@ namespace Actuators
           if(m_wdog_aux.overflow() && !m_first_run)
           {
             m_first_run = true;
+            m_aux->resetBoard();
             err("%s", DTR(Status::getString(CODE_COM_ERROR)));
             setEntityState(IMC::EntityState::ESTA_ERROR, Status::CODE_COM_ERROR);
-            throw RestartNeeded(DTR(Status::getString(CODE_COM_ERROR)), 5);
+            throw RestartNeeded(DTR(Status::getString(CODE_COM_ERROR)), 10);
           }
 
-          if(m_wdog_ina_data.overflow())
+          if(m_wdog_get_data.overflow())
           {
-            m_wdog_ina_data.reset();
-            m_aux->askINAData();
-          }
+            m_wdog_get_data.reset();
+            switch(m_step_counter_data)
+            {
+              case 0:
+                m_aux->askINAData();
+                break;
 
-          if(m_wdog_gps_data.overflow())
-          {
-            m_wdog_gps_data.reset();
-            m_aux->askGPSData();
+              case 1:
+                m_aux->askGPSData();
+                break;
+
+              default:
+                m_step_counter_data = 0;
+                break;
+            }
+            m_step_counter_data++; 
+            if(m_step_counter_data >= c_max_data_type_to_ask)
+              m_step_counter_data = 0;
           }
         }
       }

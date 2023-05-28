@@ -71,6 +71,7 @@ namespace Actuators
         m_device = device_uart;
         m_baud = baud_uart;
         m_new_ina_data = false;
+        m_new_gps_data = false;
         m_first_read = true;
         try
         {
@@ -118,15 +119,36 @@ namespace Actuators
         m_uart->writeString(buildCmdMsg(cmd).c_str());
       }
 
+      void
+      resetBoard(void)
+      {
+        char cmd[64];
+        std::sprintf(cmd, "%c,%c%c", BYTE_PREAMBLE, BYTE_RESET, '\0');
+        m_uart->writeString(buildCmdMsg(cmd).c_str());
+      }
+
       bool
       newINAData(void)
       {
-        if (m_new_ina_data)
-        {
-          m_new_ina_data = false;
-          return true;
-        }
         return m_new_ina_data;
+      }
+
+      bool
+      newGPSData(void)
+      {
+        return m_new_gps_data;
+      }
+
+      void
+      clearNewInaDataFlag(void)
+      {
+        m_new_ina_data = false;
+      }
+
+      void
+      clearNewGPSDataFlag(void)
+      {
+        m_new_gps_data = false;
       }
 
       float
@@ -213,6 +235,8 @@ namespace Actuators
       INAData m_ina_data[c_max_power_channels];
       //! Flag to control new power ina data
       bool m_new_ina_data;
+      //! Flag to control new GPS data
+      bool m_new_gps_data;
       //! First read of imu values
       bool m_first_read;
 
@@ -289,36 +313,37 @@ namespace Actuators
         // m_task->war("%s", gps_data_input);
         switch (gps_data_input[4])
         {
-        case '0':
-          std::sscanf(gps_data_input, "$,g,0,%d,%d,%d,%d,%d,%d,",
-                      &gps.year, &gps.month, &gps.day, &gps.hour, &gps.minute, &gps.second);
-          m_task->inf("%04d-%02d-%02d | %02d:%02d:%02d",
-                      gps.year, gps.month, gps.day, gps.hour, gps.minute, gps.second);
-          break;
+          case '0':
+            std::sscanf(gps_data_input, "$,g,0,%d,%d,%d,%d,%d,%d,",
+                        &gps.year, &gps.month, &gps.day, &gps.hour, &gps.minute, &gps.second);
+            m_task->inf("%04d-%02d-%02d | %02d:%02d:%02d",
+                        gps.year, gps.month, gps.day, gps.hour, gps.minute, gps.second);
+            break;
 
-        case '1':
-          std::sscanf(gps_data_input, "$,g,1,%d,%d,%f,",
-                      &gps.valid_fix, &gps.sat, &gps.hdop);
-          m_task->inf("Valid fix: %s | Sat: %d | Hdop: %.2f", gps.valid_fix ? "true" : "false",
-                      gps.sat, gps.hdop);
-          break;
+          case '1':
+            std::sscanf(gps_data_input, "$,g,1,%d,%d,%f,",
+                        &gps.valid_fix, &gps.sat, &gps.hdop);
+            m_task->inf("Valid fix: %s | Sat: %d | Hdop: %.2f", gps.valid_fix ? "true" : "false",
+                        gps.sat, gps.hdop);
+            break;
 
-        case '2':
-          std::sscanf(gps_data_input, "$,g,2,%f,%f,%f,",
-                      &gps.speed, &gps.course, &gps.altitude);
-          m_task->inf("Speed: %.2f m/s | Course: %.2f º | Altitude: %.2f m",
-                      gps.speed, gps.course, gps.altitude);
-          break;
+          case '2':
+            std::sscanf(gps_data_input, "$,g,2,%f,%f,%f,",
+                        &gps.speed, &gps.course, &gps.altitude);
+            m_task->inf("Speed: %.2f m/s | Course: %.2f º | Altitude: %.2f m",
+                        gps.speed, gps.course, gps.altitude);
+            break;
 
-        case '3':
-          std::sscanf(gps_data_input, "$,g,3,%f,%f,",
-                      &gps.latitude, &gps.longitude);
-          m_task->inf("Latitude: %f | Longitude: %f",
-                      gps.latitude, gps.longitude);
-          break;
+          case '3':
+            std::sscanf(gps_data_input, "$,g,3,%f,%f,",
+                        &gps.latitude, &gps.longitude);
+            m_task->inf("Latitude: %f | Longitude: %f",
+                        gps.latitude, gps.longitude);
+            m_new_gps_data = true;
+            break;
 
-        default:
-          break;
+          default:
+            break;
         }
       }
     };
