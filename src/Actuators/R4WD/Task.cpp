@@ -46,8 +46,8 @@ namespace Actuators
     using DUNE_NAMESPACES;
 
     static const uint8_t c_max_channels = 3;
-    static const float c_period_data_get = 0.5;
-    static const int c_max_data_type_to_ask = 2;
+    static const int c_max_data_type_to_ask = 3;
+    static const float c_period_data_get = 1.0 / c_max_data_type_to_ask;
     static const int c_max_motors = 2;
 
     struct Arguments
@@ -72,6 +72,8 @@ namespace Actuators
       float nominal_voltage_level;
       //! Rpm entity labels
       std::string motor_elabels[c_max_motors];
+      //! Distance to stop motors
+      float distance_stop;
     };
 
     struct Task: public DUNE::Tasks::Task
@@ -166,6 +168,10 @@ namespace Actuators
           .description("Motor Entity Label");
         }
 
+        param("Distance to Stop Motors", m_args.distance_stop)
+          .defaultValue("0.15")
+          .description("Distance to Stop Motors in meters.");
+
         bind<IMC::SetThrusterActuation>(this);
       }
 
@@ -245,7 +251,10 @@ namespace Actuators
       consume(const IMC::SetThrusterActuation* msg)
       {
         debug("ID:%d | %f", msg->id, msg->value);
-        m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
+        if(m_args.distance_stop > m_aux->getDistanceHC())
+          m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, 0);
+        else
+          m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
         dispatch(m_rpm[msg->id]);
       }
 
@@ -380,11 +389,19 @@ namespace Actuators
             switch(m_step_counter_data)
             {
               case 0:
-                m_aux->askINAData();
+                m_aux->askGPSData();
                 break;
 
               case 1:
-                m_aux->askGPSData();
+              case 2:
+              case 3:
+              case 4:
+              case 5:
+              case 6:
+              case 7:
+              case 8:
+              case 9:
+                m_aux->askINAData();
                 break;
 
               default:
