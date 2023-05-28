@@ -91,6 +91,8 @@ namespace Actuators
       IMC::Current m_amp[c_max_channels];
       //! Fuel Level message
       IMC::FuelLevel m_fuel;
+      //! GPS Fix message.
+      IMC::GpsFix m_fix;
       //! Task Arguments.
       Arguments m_args;
       //! Step counter for ask data.
@@ -221,7 +223,34 @@ namespace Actuators
       void
       dispatchGPSData(void)
       {
+        //double time_stamp = m_volt[0].getTimeStamp();
+        m_fix.setTimeStamp();
+        //dst = (h * 3600) + (m * 60) + s + sfp;
+        struct R4WD::AUXDriver::GPSData m_gps_data;
+        m_gps_data = m_aux->getGPSData();
+        if(m_gps_data.valid_fix)
+        {
+          m_fix.validity |= IMC::GpsFix::GFV_VALID_TIME;
+          m_fix.validity |= IMC::GpsFix::GFV_VALID_DATE;
+          m_fix.type = IMC::GpsFix::GFT_STANDALONE;
+          m_fix.validity |= IMC::GpsFix::GFV_VALID_POS;
+          m_fix.utc_time = (m_gps_data.hour * 3600) + (m_gps_data.minute * 60) + m_gps_data.second;
+          m_fix.utc_day = m_gps_data.day;
+          m_fix.utc_month = m_gps_data.month;
+          m_fix.utc_year = m_gps_data.year;
+        }
+        m_fix.lat = Angles::radians(m_gps_data.latitude);
+        m_fix.lon = Angles::radians(m_gps_data.longitude);
+        m_fix.hdop = m_gps_data.hdop;
+        m_fix.satellites = m_gps_data.sat;
+        m_fix.height = m_gps_data.altitude;
+        m_fix.validity |= IMC::GpsFix::GFV_VALID_HDOP;
+        m_fix.cog = Angles::normalizeRadian(Angles::radians(m_gps_data.course));
+        m_fix.validity |= IMC::GpsFix::GFV_VALID_COG;
+        m_fix.sog = m_gps_data.speed;
+        m_fix.validity |= IMC::GpsFix::GFV_VALID_SOG;
 
+        dispatch(m_fix);
       }
 
       void
