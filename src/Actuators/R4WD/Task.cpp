@@ -48,6 +48,7 @@ namespace Actuators
     static const uint8_t c_max_channels = 3;
     static const float c_period_data_get = 0.5;
     static const int c_max_data_type_to_ask = 2;
+    static const int c_max_motors = 2;
 
     struct Arguments
     {
@@ -63,6 +64,14 @@ namespace Actuators
       std::string channels_elabels[c_max_channels];
       //! Timeout baux communication
       float timeout_com_baux;
+      //! Minimum Voltage Level
+      float minimum_voltage_level;
+      //! Maximum Voltage Level
+      float maximum_voltage_level;
+      //! Nominal Voltage Level
+      float nominal_voltage_level;
+      //! Rpm entity labels
+      std::string motor_elabels[c_max_motors];
     };
 
     struct Task: public DUNE::Tasks::Task
@@ -97,6 +106,8 @@ namespace Actuators
       Arguments m_args;
       //! Step counter for ask data.
       int m_step_counter_data;
+      //! Rpm message
+      IMC::Rpm m_rpm[c_max_motors];
 
       Task(const std::string& name, Tasks::Context& ctx):
         Tasks::Task(name, ctx),
@@ -134,6 +145,28 @@ namespace Actuators
           .description("Channel Entity Label");
         }
 
+        param("Minimum Voltage Level", m_args.minimum_voltage_level)
+          .defaultValue("9.5")
+          .description("Minimum Voltage Level");
+
+        param("Maximum Voltage Level", m_args.maximum_voltage_level)
+          .defaultValue("12.6")
+          .description("Maximum Voltage Level");
+
+        param("Nominal Voltage Level", m_args.nominal_voltage_level)
+          .defaultValue("11.1")
+          .description("Nominal Voltage Level");
+
+        // Extract motor configurations
+        for(unsigned i = 1; i <= c_max_motors; ++i)
+        {
+          std::string option = String::str("Motor %u - Entity Label", i);
+          param(option, m_args.motor_elabels[i-1])
+          .defaultValue("")
+          .description("Motor Entity Label");
+        }
+
+        bind<IMC::SetThrusterActuation>(this);
       }
 
       //! Reserve entity identifiers.
@@ -151,6 +184,25 @@ namespace Actuators
         }
 
         m_bat_volt.setSourceEntity(getEid("Batteries"));
+
+        unsigned eid = 0;
+
+        for (unsigned i = 0; i < c_max_motors; ++i)
+        {
+          if (m_args.motor_elabels[i].empty())
+            continue;
+
+          try
+          {
+            eid = resolveEntity(m_args.motor_elabels[i]);
+          }
+          catch (Entities::EntityDataBase::NonexistentLabel& e)
+          {
+            (void)e;
+            eid = reserveEntity(m_args.motor_elabels[i]);
+          }
+          m_rpm[i].setSourceEntity(eid);
+        }
       }
 
       unsigned
@@ -188,6 +240,15 @@ namespace Actuators
         }
       }
 
+      //! Consume message IMC::SetThrusterActuation
+      void
+      consume(const IMC::SetThrusterActuation* msg)
+      {
+        debug("ID:%d | %f", msg->id, msg->value);
+        m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
+        dispatch(m_rpm[msg->id]);
+      }
+
       void
       dispatchINAData(void)
       {
@@ -215,9 +276,20 @@ namespace Actuators
         }
         // debug values for fuel level
         m_fuel.setTimeStamp(time_stamp);
-        m_fuel.value = 85;
-        m_fuel.confidence = 100;
+
+        m_fuel.value = getFuelLevel(m_bat_volt.value);
+        m_fuel.confidence = 50;
         dispatch(m_fuel, DF_KEEP_TIME);
+      }
+
+      double getFuelLevel(double voltage)
+      {
+        if (voltage < m_args.minimum_voltage_level || voltage > m_args.maximum_voltage_level)
+        {
+          war("Voltage is out of range.");
+          return 0;
+        }
+        return (voltage - m_args.minimum_voltage_level) / (m_args.maximum_voltage_level - m_args.minimum_voltage_level) * 100.0;
       }
 
       void
@@ -271,6 +343,11 @@ namespace Actuators
               setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(entity_state_text)));
               m_wdog_aux.setTop(m_args.timeout_com_baux);
               m_first_run = false;
+              for(uint8_t i = 0; i < c_max_motors; i++)
+              {
+                m_rpm[i].value = 0;
+                dispatch(m_rpm[i]);
+              }
             }
           }
           waitForMessages(0.001);

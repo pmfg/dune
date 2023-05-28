@@ -72,6 +72,8 @@ namespace Actuators
         m_new_ina_data = false;
         m_new_gps_data = false;
         m_first_read = true;
+        m_speed.motor_1 = 0;
+        m_speed.motor_2 = 1;
         try
         {
           m_uart = new SerialPort(m_device, m_baud);
@@ -211,6 +213,24 @@ namespace Actuators
         return gps;
       }
 
+      int
+      sendSpeedMotor(uint8_t motor_id, float value_speed)
+      {
+        if(motor_id == 0)
+        {
+          m_speed.motor_1 = value_speed * 100;
+        }
+        else if(motor_id == 1)
+        {
+          m_speed.motor_2 = value_speed * 100;
+        }
+        char cmd[64];
+        std::sprintf(cmd, "%c,%c,%d,%d%c", BYTE_PREAMBLE, BYTE_SET_SPEED, m_speed.motor_1, m_speed.motor_2, '\0');
+        m_uart->writeString(buildCmdMsg(cmd).c_str());
+
+        return value_speed * 100;
+      }
+
       struct GPSData gps;
 
     private:
@@ -218,6 +238,12 @@ namespace Actuators
       {
         double voltage;
         double current;
+      };
+
+      struct MotorSpeed
+      {
+        int motor_1;
+        int motor_2;
       };
 
       //! Parent task.
@@ -238,6 +264,8 @@ namespace Actuators
       bool m_new_gps_data;
       //! First read of imu values
       bool m_first_read;
+      //! Struct to save motor speeds in percentage.
+      MotorSpeed m_speed;
 
       char
       calcCRC8(char *data_in)
@@ -315,28 +343,28 @@ namespace Actuators
           case '0':
             std::sscanf(gps_data_input, "$,g,0,%d,%d,%d,%d,%d,%d,",
                         &gps.year, &gps.month, &gps.day, &gps.hour, &gps.minute, &gps.second);
-            m_task->inf("%04d-%02d-%02d | %02d:%02d:%02d",
+            m_task->debug("%04d-%02d-%02d | %02d:%02d:%02d",
                         gps.year, gps.month, gps.day, gps.hour, gps.minute, gps.second);
             break;
 
           case '1':
             std::sscanf(gps_data_input, "$,g,1,%d,%d,%f,",
                         &gps.valid_fix, &gps.sat, &gps.hdop);
-            m_task->inf("Valid fix: %s | Sat: %d | Hdop: %.2f", gps.valid_fix ? "true" : "false",
+            m_task->debug("Valid fix: %s | Sat: %d | Hdop: %.2f", gps.valid_fix ? "true" : "false",
                         gps.sat, gps.hdop);
             break;
 
           case '2':
             std::sscanf(gps_data_input, "$,g,2,%f,%f,%f,",
                         &gps.speed, &gps.course, &gps.altitude);
-            m_task->inf("Speed: %.2f m/s | Course: %.2f º | Altitude: %.2f m",
+            m_task->debug("Speed: %.2f m/s | Course: %.2f º | Altitude: %.2f m",
                         gps.speed, gps.course, gps.altitude);
             break;
 
           case '3':
             std::sscanf(gps_data_input, "$,g,3,%f,%f,",
                         &gps.latitude, &gps.longitude);
-            m_task->inf("Latitude: %f | Longitude: %f",
+            m_task->debug("Latitude: %f | Longitude: %f",
                         gps.latitude, gps.longitude);
             m_new_gps_data = true;
             break;
