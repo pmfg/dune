@@ -251,10 +251,17 @@ namespace Actuators
       consume(const IMC::SetThrusterActuation* msg)
       {
         debug("ID:%d | %f", msg->id, msg->value);
-        if(m_args.distance_stop > m_aux->getDistanceHC())
-          m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, 0);
+        if(msg->value > 0)
+        {
+          if(m_args.distance_stop > m_aux->getDistanceHC())
+            m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, 0);
+          else
+            m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
+        }
         else
+        {
           m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
+        }
         dispatch(m_rpm[msg->id]);
       }
 
