@@ -41,5 +41,7 @@
 #define BYTE_INA_DATA         'i'
 #define BYTE_RESET            'R'
 #define BYTE_DISTANCE         'd'
+#define BYTE_LED              'L'
+#define BYTE_POWEROFF         'p'
 
 #endif
