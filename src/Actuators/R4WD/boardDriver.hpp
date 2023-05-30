@@ -64,6 +64,19 @@ namespace Actuators
         int sat;
         int valid_fix;
       };
+
+      enum LEDId
+      {
+        LED_RED = 0,
+        LED_GREEN = 1
+      };
+
+      enum PowerStates
+      {
+        POWER_OFF = 0,
+        POWER_ON = 1
+      };
+
       AUXDriver(DUNE::Tasks::Task *task, std::string device_uart, unsigned baud_uart)
       {
         m_task = task;
@@ -75,6 +88,7 @@ namespace Actuators
         m_speed.motor_1 = 0;
         m_speed.motor_2 = 1;
         m_hc_echo = 0;
+        m_is_switch_on = false;
         try
         {
           m_uart = new SerialPort(m_device, m_baud);
@@ -127,6 +141,35 @@ namespace Actuators
         char cmd[64];
         std::sprintf(cmd, "%c,%c%c", BYTE_PREAMBLE, BYTE_RESET, '\0');
         m_uart->writeString(buildCmdMsg(cmd).c_str());
+      }
+
+      void
+      setLed(uint8_t led_id, bool power_led_state)
+      {
+        char led_power_cmd[32];
+        char led_char = 'A';
+        switch (led_id)
+        {
+          case LED_RED:
+            led_char = 'R';
+            break;
+
+          case LED_GREEN:
+            led_char = 'G';
+            break;
+
+          default:
+            break;
+        }
+        std::sprintf(led_power_cmd, "%c,%c,%c,%d%c", BYTE_PREAMBLE, BYTE_LED,
+                    led_char, power_led_state, '\0');
+        m_uart->writeString(buildCmdMsg(led_power_cmd).c_str());
+      }
+
+      bool
+      isSwitchOn(void)
+      {
+        return m_is_switch_on;
       }
 
       bool
@@ -205,6 +248,10 @@ namespace Actuators
               std::sscanf(bfrUart, "$,d,%d,*", &m_hc_echo);
               m_task->debug("Distance HC: %.2f m", m_hc_echo/100.0);
             }
+            else if (std::strstr(bfrUart, "$,p,") != NULL)
+            {
+              m_is_switch_on = true;
+            }
           }
           else
           {
@@ -280,6 +327,8 @@ namespace Actuators
       MotorSpeed m_speed;
       //! Echo Distance value
       int m_hc_echo;
+      //! Switch State
+      bool m_is_switch_on;
 
       char
       calcCRC8(char *data_in)

@@ -38,6 +38,7 @@
 // Local headers
 #include "boardDriver.hpp"
 #include "auxCommands.hpp"
+#include "LedMachine.hpp"
 
 namespace Actuators
 {
@@ -49,6 +50,7 @@ namespace Actuators
     static const int c_max_data_type_to_ask = 3;
     static const float c_period_data_get = 1.0 / c_max_data_type_to_ask;
     static const int c_max_motors = 2;
+    static const int c_max_led = 2;
 
     struct Arguments
     {
@@ -80,6 +82,8 @@ namespace Actuators
     {
       //! BAUX BOARD.
       AUXDriver* m_aux;
+      //! LED Machine
+      LedMachine* m_led;
       //! State of system
       uint8_t m_system_state;
       //! Flag of critical error
@@ -110,6 +114,8 @@ namespace Actuators
       int m_step_counter_data;
       //! Rpm message
       IMC::Rpm m_rpm[c_max_motors];
+      //! Power operation.
+      IMC::PowerOperation m_pwr_op;
 
       Task(const std::string& name, Tasks::Context& ctx):
         Tasks::Task(name, ctx),
@@ -173,6 +179,9 @@ namespace Actuators
           .description("Distance to Stop Motors in meters.");
 
         bind<IMC::SetThrusterActuation>(this);
+        bind<IMC::VehicleState>(this);
+        bind<IMC::EntityState>(this);
+        bind<IMC::GpsFix>(this);
       }
 
       //! Reserve entity identifiers.
@@ -231,9 +240,11 @@ namespace Actuators
       void
       onResourceAcquisition(void)
       {
+        m_pwr_op.setDestination(getSystemId());
         setEntityState(IMC::EntityState::ESTA_BOOT, Status::CODE_INIT);
         m_wdog.setTop(5000);
         m_aux = new AUXDriver(this, m_args.uart_dev, m_args.uart_baud);
+        m_led = new LedMachine(m_aux);
         m_aux->getFirmwareVersion();
       }
 
@@ -242,7 +253,71 @@ namespace Actuators
       {
         if(m_is_active)
         {
-          //stop machines
+          for(uint8_t i = 0; i < c_max_led; i++)
+          {
+            m_led->turnLedOff(i);
+          }
+        }
+      }
+
+      void
+      consume(const IMC::GpsFix* msg)
+      {
+        if (msg->getSource() != getSystemId() || m_first_run)
+          return;
+
+        debug("GpsFix %d %f", msg->satellites, msg->hdop);
+        if(msg->satellites >= m_args.min_sat && msg->hdop <= m_args.min_hdop)
+          m_led->setGPSFixState(true);
+        else
+          m_led->setGPSFixState(false);
+      }
+
+      void
+      consume(const IMC::EntityState* msg)
+      {
+        if (msg->state != IMC::EntityState::ESTA_FAILURE || m_first_run)
+          return;
+
+        inf("EntityState %s", resolveEntity(msg->getId()).c_str());
+        //Add code to monitor entity for critical error
+        //use m_args to get entity to filter
+        ////m_led->setState(LedMachine::LED_STATE_ERROR);
+        ////m_critical_error = true;
+        if(m_first_run)
+          m_wdog.reset();
+      }
+
+      void
+      consume(const IMC::VehicleState* msg)
+      {
+        if (m_critical_error || m_first_run)
+          return;
+
+        // If system is shutting down don't update LEDs.
+        if (m_led->getLedState() == LedMachine::LED_STATE_POWEROFF)
+          return;
+
+        debug("VehicleState %d | %s", msg->op_mode, resolveEntity(msg->getSourceEntity()).c_str());
+
+        switch (msg->op_mode)
+        {
+          case IMC::VehicleState::VS_BOOT:
+            m_led->setState(LedMachine::LED_STATE_BOOT);
+            break;
+          case IMC::VehicleState::VS_ERROR:
+            m_led->setState(LedMachine::LED_STATE_ERROR);
+            break;
+          case IMC::VehicleState::VS_CALIBRATION:
+            m_led->setState(LedMachine::LED_STATE_CALIBRATION);
+            break;
+          case IMC::VehicleState::VS_MANEUVER:
+          case IMC::VehicleState::VS_EXTERNAL:
+            m_led->setState(LedMachine::LED_STATE_PLAN_EXECUTION);
+            break;
+          case IMC::VehicleState::VS_SERVICE:
+            m_led->setState(LedMachine::LED_STATE_NORMAL);
+            break;
         }
       }
 
@@ -251,7 +326,7 @@ namespace Actuators
       consume(const IMC::SetThrusterActuation* msg)
       {
         debug("ID:%d | %f", msg->id, msg->value);
-        if(msg->value > 0)
+        if(msg->value > 0 && m_args.distance_stop > 0)
         {
           if(m_args.distance_stop > m_aux->getDistanceHC())
             m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, 0);
@@ -344,6 +419,7 @@ namespace Actuators
       void
       onMain(void)
       {
+        bool is_powero_off = false;
         m_is_active = true;
         m_wdog.setTop(5.0);
         m_wdog_get_data.setTop(c_period_data_get);
@@ -368,6 +444,7 @@ namespace Actuators
           }
           waitForMessages(0.001);
           m_aux->auxMachine();
+          m_led->ledStateUpdate();
 
           if(!m_first_run)
           {
@@ -418,6 +495,38 @@ namespace Actuators
             m_step_counter_data++; 
             if(m_step_counter_data >= c_max_data_type_to_ask)
               m_step_counter_data = 0;
+          }
+
+          if (m_aux->isSwitchOn() && !is_powero_off)
+          {
+            war("%s", DTR(Status::getString(Status::CODE_POWER_DOWN)));
+            m_pwr_op.op = IMC::PowerOperation::POP_PWR_DOWN_IP;
+            dispatch(m_pwr_op, DF_LOOP_BACK);
+            is_powero_off = true;
+            m_led->setState(LedMachine::LED_STATE_POWEROFF);
+            m_wdog.setTop(5);
+            m_wdog.reset();
+          }
+          else if(is_powero_off)
+          {
+            if(m_wdog.overflow())
+            {
+              war("Powering off CPU");
+              onResourceRelease();
+              m_led->turnLedOn(AUXDriver::LED_RED);
+              Time::Delay::wait(2);
+              if (std::system("poweroff") == -1)
+              {
+                setEntityState(IMC::EntityState::ESTA_ERROR, Status::CODE_INTERNAL_ERROR);
+                err(DTR("failed to execute poweroff command"));
+                m_wdog.setTop(1);
+                m_wdog.reset();
+              }
+              else
+              {
+                while (!stopping());
+              }
+            }
           }
         }
       }
