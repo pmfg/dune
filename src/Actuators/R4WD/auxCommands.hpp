@@ -43,5 +43,6 @@
 #define BYTE_DISTANCE         'd'
 #define BYTE_LED              'L'
 #define BYTE_POWEROFF         'p'
+#define BYTE_BMP              'B'
 
 #endif

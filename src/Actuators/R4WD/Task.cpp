@@ -116,6 +116,10 @@ namespace Actuators
       IMC::Rpm m_rpm[c_max_motors];
       //! Power operation.
       IMC::PowerOperation m_pwr_op;
+      //! BMP Pressure
+      IMC::Pressure m_pressure;
+      //! BMP Temperature
+      IMC::Temperature m_temperature;
 
       Task(const std::string& name, Tasks::Context& ctx):
         Tasks::Task(name, ctx),
@@ -242,10 +246,21 @@ namespace Actuators
       {
         m_pwr_op.setDestination(getSystemId());
         setEntityState(IMC::EntityState::ESTA_BOOT, Status::CODE_INIT);
-        m_wdog.setTop(5000);
         m_aux = new AUXDriver(this, m_args.uart_dev, m_args.uart_baud);
         m_led = new LedMachine(m_aux);
-        m_aux->getFirmwareVersion();
+        m_wdog.setTop(1);
+        while(!m_aux->haveFirmwareName())
+        {
+          if(m_wdog.overflow())
+          {
+            inf("Asking firmware version of board.");
+            m_aux->getFirmwareVersion();
+            m_wdog.setTop(1000);
+          }
+          m_aux->auxMachine();
+          m_led->ledStateUpdate();
+        }
+        m_wdog.setTop(5000);
       }
 
       void
@@ -326,18 +341,17 @@ namespace Actuators
       consume(const IMC::SetThrusterActuation* msg)
       {
         debug("ID:%d | %f", msg->id, msg->value);
-        if(msg->value > 0 && m_args.distance_stop > 0)
-        {
-          if(m_args.distance_stop > m_aux->getDistanceHC())
-            m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, 0);
-          else
-            m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
-        }
-        else
-        {
-          m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
-        }
+        m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
         dispatch(m_rpm[msg->id]);
+      }
+
+      void
+      dispatchBMPData(void)
+      {
+        m_pressure.value = m_aux->getPressureBMP();
+        m_temperature.value = m_aux->getLocalTemperatureBMP();
+        dispatch(m_pressure);
+        dispatch(m_temperature);
       }
 
       void
@@ -455,6 +469,11 @@ namespace Actuators
               dispatchINAData();
               dispatchGPSData();
               m_wdog_aux.reset();
+            }
+            if(m_aux->newBMPData())
+            {
+              m_aux->clearBMPFlag();
+              dispatchBMPData();
             }
           }
 
