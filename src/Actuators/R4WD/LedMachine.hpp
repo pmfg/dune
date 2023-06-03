@@ -184,7 +184,7 @@ namespace Actuators
                         case 0:
                             m_aux->setLed(AUXDriver::LED_RED, AUXDriver::POWER_OFF);
                             m_aux->setLed(AUXDriver::LED_GREEN, AUXDriver::POWER_ON);
-                            m_wdog.setTop(0.500);
+                            m_wdog.setTop(0.5);
                             m_counter_state++;
                             break;
 
@@ -192,16 +192,16 @@ namespace Actuators
                             m_aux->setLed(AUXDriver::LED_RED, AUXDriver::POWER_OFF);
                             m_aux->setLed(AUXDriver::LED_GREEN, AUXDriver::POWER_OFF);
                             if(m_fix_state == LED_STATE_NORMAL)
-                                m_wdog.setTop(2.0);
+                                m_wdog.setTop(3.0);
                             else
-                                m_wdog.setTop(0.5);
+                                m_wdog.setTop(1.0);
                             m_counter_state++;
                             break;
 
                         case 2:
                             m_aux->setLed(AUXDriver::LED_RED, AUXDriver::POWER_OFF);
                             m_aux->setLed(AUXDriver::LED_GREEN, AUXDriver::POWER_ON);
-                            m_wdog.setTop(0.500);
+                            m_wdog.setTop(0.5);
                             m_counter_state++;
                             break;
 
@@ -209,9 +209,9 @@ namespace Actuators
                             m_aux->setLed(AUXDriver::LED_RED, AUXDriver::POWER_OFF);
                             m_aux->setLed(AUXDriver::LED_GREEN, AUXDriver::POWER_OFF);
                             if(m_fix_state == LED_STATE_NORMAL)
-                                m_wdog.setTop(3.0);
+                                m_wdog.setTop(6.0);
                             else
-                                m_wdog.setTop(1.0);
+                                m_wdog.setTop(2.0);
                             m_counter_state = 0;
                             break;
 

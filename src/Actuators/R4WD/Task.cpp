@@ -120,13 +120,16 @@ namespace Actuators
       IMC::Pressure m_pressure;
       //! BMP Temperature
       IMC::Temperature m_temperature;
+      //! Flag to control gps fix state
+      bool m_fix_ok;
 
       Task(const std::string& name, Tasks::Context& ctx):
         Tasks::Task(name, ctx),
         m_critical_error(false),
         m_is_active(false),
         m_first_run(true),
-        m_step_counter_data(0)
+        m_step_counter_data(0),
+        m_fix_ok(false)
       {
         param("Serial Port - Device", m_args.uart_dev)
         .defaultValue("")
@@ -331,7 +334,10 @@ namespace Actuators
             m_led->setState(LedMachine::LED_STATE_PLAN_EXECUTION);
             break;
           case IMC::VehicleState::VS_SERVICE:
-            m_led->setState(LedMachine::LED_STATE_NORMAL);
+            if(m_fix_ok)
+              m_led->setState(LedMachine::LED_STATE_NORMAL);
+            else
+              m_led->setState(LedMachine::LED_STATE_NO_FIX);
             break;
         }
       }
@@ -407,6 +413,7 @@ namespace Actuators
         m_gps_data = m_aux->getGPSData();
         if(m_gps_data.valid_fix)
         {
+          m_fix_ok = true;
           m_fix.validity |= IMC::GpsFix::GFV_VALID_TIME;
           m_fix.validity |= IMC::GpsFix::GFV_VALID_DATE;
           m_fix.type = IMC::GpsFix::GFT_STANDALONE;
@@ -415,6 +422,10 @@ namespace Actuators
           m_fix.utc_day = m_gps_data.day;
           m_fix.utc_month = m_gps_data.month;
           m_fix.utc_year = m_gps_data.year;
+        }
+        else
+        {
+          m_fix_ok = false;
         }
         m_fix.lat = Angles::radians(m_gps_data.latitude);
         m_fix.lon = Angles::radians(m_gps_data.longitude);
@@ -443,9 +454,9 @@ namespace Actuators
           {
             if(m_wdog.overflow())
             {
-              setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_ACTIVE);
               char entity_state_text[128];
-              std::sprintf(entity_state_text, "active | %s | %d", m_args.uart_dev.c_str(), m_args.uart_baud);
+              std::sprintf(entity_state_text, "active | %s | %d | GPS(%d|%.1f|%.1f)", m_args.uart_dev.c_str(), m_args.uart_baud,
+                            m_fix.satellites, m_fix.hdop, m_fix.height);
               setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(entity_state_text)));
               m_wdog_aux.setTop(m_args.timeout_com_baux);
               m_first_run = false;
@@ -464,6 +475,10 @@ namespace Actuators
           {
             if(m_aux->newINAData() && m_aux->newGPSData())
             {
+              char entity_state_text[128];
+              std::sprintf(entity_state_text, "active | %s | %d | GPS(%d|%.1f|%.1f)", m_args.uart_dev.c_str(), m_args.uart_baud,
+                            m_fix.satellites, m_fix.hdop, m_fix.height);
+              setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(entity_state_text)));
               m_aux->clearNewGPSDataFlag();
               m_aux->clearNewInaDataFlag();
               dispatchINAData();
