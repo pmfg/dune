@@ -87,8 +87,12 @@ namespace Actuators
         m_first_read = true;
         m_speed.motor_1 = 0;
         m_speed.motor_2 = 1;
-        m_hc_echo = 0;
+        m_pressure = 0;
+        m_altitude = 0;
+        m_local_temp = 0;
         m_is_switch_on = false;
+        m_new_bmp_data = false;
+        m_get_firmware_version = false;
         try
         {
           m_uart = new SerialPort(m_device, m_baud);
@@ -230,6 +234,7 @@ namespace Actuators
               vrs = std::strtok(NULL, ",");
               vrs = std::strtok(NULL, ",");
               m_task->inf("Firmware version: %s", vrs);
+              m_get_firmware_version = true;
             }
             else if (std::strstr(bfrUart, "$,i,E,") != NULL)
             {
@@ -243,10 +248,13 @@ namespace Actuators
             {
               parseGPSData(bfrUart);
             }
-            else if (std::strstr(bfrUart, "$,d,") != NULL)
+            else if (std::strstr(bfrUart, "$,B,") != NULL)
             {
-              std::sscanf(bfrUart, "$,d,%d,*", &m_hc_echo);
-              m_task->debug("Distance HC: %.2f m", m_hc_echo/100.0);
+              std::sscanf(bfrUart, "$,B,%f,%f,%f,*", &m_pressure, &m_altitude, &m_local_temp);
+              m_task->debug("Pressure BMP: %.2f mBar", m_pressure);
+              m_task->debug("Altitude BMP: %.2f m", m_altitude);
+              m_task->debug("Temperature BMP: %.2f C", m_local_temp);
+              m_new_bmp_data = true;
             }
             else if (std::strstr(bfrUart, "$,p,") != NULL)
             {
@@ -285,9 +293,39 @@ namespace Actuators
       }
 
       float
-      getDistanceHC(void)
+      getPressureBMP(void)
       {
-        return m_hc_echo / 100.0;
+        return m_pressure;
+      }
+
+      float
+      getAltitudeBMP(void)
+      {
+        return m_altitude;
+      }
+
+      float
+      getLocalTemperatureBMP(void)
+      {
+        return m_local_temp;
+      }
+
+      bool
+      newBMPData(void)
+      {
+        return m_new_bmp_data;
+      }
+
+      void
+      clearBMPFlag(void)
+      {
+        m_new_bmp_data = false;
+      }
+
+      bool
+      haveFirmwareName(void)
+      {
+        return m_get_firmware_version;
       }
 
       struct GPSData gps;
@@ -325,10 +363,18 @@ namespace Actuators
       bool m_first_read;
       //! Struct to save motor speeds in percentage.
       MotorSpeed m_speed;
-      //! Echo Distance value
-      int m_hc_echo;
       //! Switch State
       bool m_is_switch_on;
+      //! Pressure
+      float m_pressure;
+      //! Altitude
+      float m_altitude;
+      //! Local Temperature
+      float m_local_temp;
+      //! Flag to control new data from bmp280
+      bool m_new_bmp_data;
+      //! Flag to control firmware name
+      bool m_get_firmware_version;
 
       char
       calcCRC8(char *data_in)
