@@ -347,7 +347,22 @@ namespace Actuators
       consume(const IMC::SetThrusterActuation* msg)
       {
         debug("ID:%d | %f", msg->id, msg->value);
-        m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
+        if(msg->value > 0 && m_args.distance_stop > 0)
+        {
+          if(m_args.distance_stop >= m_aux->getDistanceLidar())
+          {
+            war("Stoping Motor %d, object to close ( < %.2f m)", msg->id, m_args.distance_stop);
+            m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, 0);
+          }
+          else
+          {
+            m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
+          }
+        }
+        else
+        {
+          m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
+        }
         dispatch(m_rpm[msg->id]);
       }
 
@@ -358,6 +373,13 @@ namespace Actuators
         m_temperature.value = m_aux->getLocalTemperatureBMP();
         dispatch(m_pressure);
         dispatch(m_temperature);
+      }
+
+      void
+      dispatchHeadingData(void)
+      {
+        int heading = m_aux->getHeading();
+        war("heading : %d", heading);
       }
 
       void
@@ -489,6 +511,11 @@ namespace Actuators
             {
               m_aux->clearBMPFlag();
               dispatchBMPData();
+            }
+            if(m_aux->newHeadingValue())
+            {
+              m_aux->clearFlagHeading();
+              dispatchHeadingData();
             }
           }
 
