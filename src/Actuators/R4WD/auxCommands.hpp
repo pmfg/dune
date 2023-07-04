@@ -44,5 +44,9 @@
 #define BYTE_LED              'L'
 #define BYTE_POWEROFF         'p'
 #define BYTE_BMP              'B'
+#define BYTE_HEADING          'H'
+#define BYTE_SERVO_POS        'S'
+#define BYTE_LIDAR            'l'
+#define BYTE_START_LIDAR      'I'
 
 #endif

@@ -93,6 +93,8 @@ namespace Actuators
         m_is_switch_on = false;
         m_new_bmp_data = false;
         m_get_firmware_version = false;
+        m_new_heading = false;
+        m_heading = 0;
         try
         {
           m_uart = new SerialPort(m_device, m_baud);
@@ -260,10 +262,26 @@ namespace Actuators
             {
               m_is_switch_on = true;
             }
+            else if (std::strstr(bfrUart, "$,H,") != NULL)
+            {
+              std::sscanf(bfrUart, "$,H,%d,*", &m_heading);
+              m_task->debug("Heading: %.d", m_heading);
+              m_new_heading = true;
+            }
+            else if (std::strstr(bfrUart, "$,d,") != NULL)
+            {
+              std::sscanf(bfrUart, "$,d,%d,*", &m_lidar_dist);
+              m_task->debug("Distance LIDAR: %.2f m", m_lidar_dist/100.0);
+            }
+            else if (std::strstr(bfrUart, "$,l,") != NULL)
+            {
+              std::sscanf(bfrUart, "$,l,%d,%d*", &m_lidar_dist, &m_lidar_angle);
+              m_task->debug("Distance LIDAR: %.2f m at %d", m_lidar_dist/100.0, m_lidar_angle);
+            }
           }
           else
           {
-            m_task->debug("Wrong csum");
+            m_task->inf("Wrong csum %s", bfrUart);
           }
         }
       }
@@ -328,6 +346,30 @@ namespace Actuators
         return m_get_firmware_version;
       }
 
+      int
+      getHeading(void)
+      {
+        return m_heading;
+      }
+
+      bool
+      newHeadingValue(void)
+      {
+        return m_new_heading;
+      }
+
+      void
+      clearFlagHeading(void)
+      {
+        m_new_heading = false;
+      }
+
+      float
+      getDistanceLidar(void)
+      {
+        return m_lidar_dist/100.0;
+      }
+
       struct GPSData gps;
 
     private:
@@ -375,6 +417,14 @@ namespace Actuators
       bool m_new_bmp_data;
       //! Flag to control firmware name
       bool m_get_firmware_version;
+      //! Heading (AHRS)
+      int m_heading;
+      //! Flag to control new data heading
+      bool m_new_heading;
+      //! Lidar Distance value cm
+      int m_lidar_dist;
+      //! Lidar angle value
+      int m_lidar_angle;
 
       char
       calcCRC8(char *data_in)
@@ -386,7 +436,7 @@ namespace Actuators
           result ^= data_in[cnt];
           cnt++;
         }
-        return result;
+        return result | 0x80;
       }
 
       std::string
