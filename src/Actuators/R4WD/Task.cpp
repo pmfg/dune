@@ -76,6 +76,8 @@ namespace Actuators
       std::string motor_elabels[c_max_motors];
       //! Distance to stop motors
       float distance_stop;
+      //! Get Lidar Distance
+      bool get_lidar;
     };
 
     struct Task: public DUNE::Tasks::Task
@@ -184,6 +186,10 @@ namespace Actuators
         param("Distance to Stop Motors", m_args.distance_stop)
           .defaultValue("0.15")
           .description("Distance to Stop Motors in meters.");
+
+        param("Get Data Lidar", m_args.get_lidar)
+          .defaultValue("false")
+          .description("Get Data Lidar.");
 
         bind<IMC::SetThrusterActuation>(this);
         bind<IMC::VehicleState>(this);
@@ -378,8 +384,9 @@ namespace Actuators
       void
       dispatchHeadingData(void)
       {
+        //TODO
         int heading = m_aux->getHeading();
-        war("heading : %d", heading);
+        //war("heading : %d", heading);
       }
 
       void
@@ -495,27 +502,18 @@ namespace Actuators
 
           if(!m_first_run)
           {
-            if(m_aux->newINAData() && m_aux->newGPSData())
+            if(m_aux->newAllData())
             {
+              m_aux->clearNewAllDataFlag();
               char entity_state_text[128];
               std::sprintf(entity_state_text, "active | %s | %d | GPS(%d|%.1f|%.1f)", m_args.uart_dev.c_str(), m_args.uart_baud,
                             m_fix.satellites, m_fix.hdop, m_fix.height);
               setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(entity_state_text)));
-              m_aux->clearNewGPSDataFlag();
-              m_aux->clearNewInaDataFlag();
               dispatchINAData();
               dispatchGPSData();
-              m_wdog_aux.reset();
-            }
-            if(m_aux->newBMPData())
-            {
-              m_aux->clearBMPFlag();
               dispatchBMPData();
-            }
-            if(m_aux->newHeadingValue())
-            {
-              m_aux->clearFlagHeading();
               dispatchHeadingData();
+              m_wdog_aux.reset();
             }
           }
 
@@ -531,31 +529,7 @@ namespace Actuators
           if(m_wdog_get_data.overflow())
           {
             m_wdog_get_data.reset();
-            switch(m_step_counter_data)
-            {
-              case 0:
-                m_aux->askGPSData();
-                break;
-
-              case 1:
-              case 2:
-              case 3:
-              case 4:
-              case 5:
-              case 6:
-              case 7:
-              case 8:
-              case 9:
-                m_aux->askINAData();
-                break;
-
-              default:
-                m_step_counter_data = 0;
-                break;
-            }
-            m_step_counter_data++; 
-            if(m_step_counter_data >= c_max_data_type_to_ask)
-              m_step_counter_data = 0;
+            m_aux->askAllData();
           }
 
           if (m_aux->isSwitchOn() && !is_powero_off)
