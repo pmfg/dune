@@ -48,5 +48,6 @@
 #define BYTE_SERVO_POS        'S'
 #define BYTE_LIDAR            'l'
 #define BYTE_START_LIDAR      'I'
+#define BYTE_SEND_ALL_DATA    'D'
 
 #endif

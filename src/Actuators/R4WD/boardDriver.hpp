@@ -82,8 +82,7 @@ namespace Actuators
         m_task = task;
         m_device = device_uart;
         m_baud = baud_uart;
-        m_new_ina_data = false;
-        m_new_gps_data = false;
+        m_new_all_data = false;
         m_first_read = true;
         m_speed.motor_1 = 0;
         m_speed.motor_2 = 1;
@@ -91,10 +90,9 @@ namespace Actuators
         m_altitude = 0;
         m_local_temp = 0;
         m_is_switch_on = false;
-        m_new_bmp_data = false;
         m_get_firmware_version = false;
-        m_new_heading = false;
         m_heading = 0;
+        m_lidar_dist = 0;
         try
         {
           m_uart = new SerialPort(m_device, m_baud);
@@ -118,18 +116,10 @@ namespace Actuators
       }
 
       void
-      askINAData(void)
+      askAllData(void)
       {
         char cmd[64];
-        std::sprintf(cmd, "%c,%c%c", BYTE_PREAMBLE, BYTE_INA_DATA, '\0');
-        m_uart->writeString(buildCmdMsg(cmd).c_str());
-      }
-
-      void
-      askGPSData(void)
-      {
-        char cmd[64];
-        std::sprintf(cmd, "%c,%c%c", BYTE_PREAMBLE, BYTE_GPS_DATA, '\0');
+        std::sprintf(cmd, "%c,%c%c", BYTE_PREAMBLE, BYTE_SEND_ALL_DATA, '\0');
         m_uart->writeString(buildCmdMsg(cmd).c_str());
       }
 
@@ -179,27 +169,15 @@ namespace Actuators
       }
 
       bool
-      newINAData(void)
+      newAllData(void)
       {
-        return m_new_ina_data;
-      }
-
-      bool
-      newGPSData(void)
-      {
-        return m_new_gps_data;
+        return m_new_all_data;
       }
 
       void
-      clearNewInaDataFlag(void)
+      clearNewAllDataFlag(void)
       {
-        m_new_ina_data = false;
-      }
-
-      void
-      clearNewGPSDataFlag(void)
-      {
-        m_new_gps_data = false;
+        m_new_all_data = false;
       }
 
       float
@@ -242,41 +220,13 @@ namespace Actuators
             {
               m_task->war("INA in error, no data power from INA");
             }
-            else if (std::strstr(bfrUart, "$,i,") != NULL)
+            else if (std::strstr(bfrUart, "$,D,") != NULL)
             {
-              parseINAData(bfrUart);
-            }
-            else if (std::strstr(bfrUart, "$,g,") != NULL)
-            {
-              parseGPSData(bfrUart);
-            }
-            else if (std::strstr(bfrUart, "$,B,") != NULL)
-            {
-              std::sscanf(bfrUart, "$,B,%f,%f,%f,*", &m_pressure, &m_altitude, &m_local_temp);
-              m_task->debug("Pressure BMP: %.2f mBar", m_pressure);
-              m_task->debug("Altitude BMP: %.2f m", m_altitude);
-              m_task->debug("Temperature BMP: %.2f C", m_local_temp);
-              m_new_bmp_data = true;
+              parseAllData(bfrUart);
             }
             else if (std::strstr(bfrUart, "$,p,") != NULL)
             {
               m_is_switch_on = true;
-            }
-            else if (std::strstr(bfrUart, "$,H,") != NULL)
-            {
-              std::sscanf(bfrUart, "$,H,%d,*", &m_heading);
-              m_task->debug("Heading: %.d", m_heading);
-              m_new_heading = true;
-            }
-            else if (std::strstr(bfrUart, "$,d,") != NULL)
-            {
-              std::sscanf(bfrUart, "$,d,%d,*", &m_lidar_dist);
-              m_task->debug("Distance LIDAR: %.2f m", m_lidar_dist/100.0);
-            }
-            else if (std::strstr(bfrUart, "$,l,") != NULL)
-            {
-              std::sscanf(bfrUart, "$,l,%d,%d*", &m_lidar_dist, &m_lidar_angle);
-              m_task->debug("Distance LIDAR: %.2f m at %d", m_lidar_dist/100.0, m_lidar_angle);
             }
           }
           else
@@ -329,39 +279,9 @@ namespace Actuators
       }
 
       bool
-      newBMPData(void)
-      {
-        return m_new_bmp_data;
-      }
-
-      void
-      clearBMPFlag(void)
-      {
-        m_new_bmp_data = false;
-      }
-
-      bool
       haveFirmwareName(void)
       {
         return m_get_firmware_version;
-      }
-
-      int
-      getHeading(void)
-      {
-        return m_heading;
-      }
-
-      bool
-      newHeadingValue(void)
-      {
-        return m_new_heading;
-      }
-
-      void
-      clearFlagHeading(void)
-      {
-        m_new_heading = false;
       }
 
       float
@@ -370,13 +290,19 @@ namespace Actuators
         return m_lidar_dist/100.0;
       }
 
+      int
+      getHeading(void)
+      {
+        return m_heading;
+      }
+
       struct GPSData gps;
 
     private:
       struct INAData
       {
-        double voltage;
-        double current;
+        float voltage;
+        float current;
       };
 
       struct MotorSpeed
@@ -413,18 +339,14 @@ namespace Actuators
       float m_altitude;
       //! Local Temperature
       float m_local_temp;
-      //! Flag to control new data from bmp280
-      bool m_new_bmp_data;
+      //! Flag to control new data payload from
+      bool m_new_all_data;
       //! Flag to control firmware name
       bool m_get_firmware_version;
       //! Heading (AHRS)
       int m_heading;
-      //! Flag to control new data heading
-      bool m_new_heading;
-      //! Lidar Distance value cm
+      //! Distance from Lidar
       int m_lidar_dist;
-      //! Lidar angle value
-      int m_lidar_angle;
 
       char
       calcCRC8(char *data_in)
@@ -477,60 +399,27 @@ namespace Actuators
       }
 
       void
-      parseINAData(char *ina_data_input)
+      parseAllData(char *ina_data_input)
       {
-        // TODO filter erro message
-        // parse ina data
-        // m_task->inf("%s", ina_data_input);
-        std::sscanf(ina_data_input, "$,i,%lf,%lf,%lf,%lf,%lf,%lf,*%*s",
-                    &m_ina_data[0].voltage, &m_ina_data[0].current,
-                    &m_ina_data[1].voltage, &m_ina_data[1].current,
-                    &m_ina_data[2].voltage, &m_ina_data[2].current);
+        std::sscanf(ina_data_input, "$,D,%d,%d,%d,%d,%d,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%f,%f,%f,%f,%f,%f,*%*s",
+          &gps.year, &gps.month, &gps.day, &gps.hour, &gps.minute, &gps.second,
+          &gps.valid_fix, &gps.sat, &gps.hdop, &gps.speed, &gps.course, &gps.altitude,
+          &gps.latitude, &gps.longitude,
+          &m_local_temp, &m_pressure, &m_altitude,
+          &m_heading, &m_lidar_dist,
+          &m_ina_data[0].voltage, &m_ina_data[0].current,
+          &m_ina_data[1].voltage, &m_ina_data[1].current,
+          &m_ina_data[2].voltage, &m_ina_data[2].current);
+
+        m_new_all_data = true;
 
         m_task->debug("Channel 1: %.3fV | %.3fA", m_ina_data[0].voltage, m_ina_data[0].current);
         m_task->debug("Channel 2: %.3fV | %.3fA", m_ina_data[1].voltage, m_ina_data[1].current);
         m_task->debug("Channel 3: %.3fV | %.3fA", m_ina_data[2].voltage, m_ina_data[2].current);
-        m_new_ina_data = true;
-      }
-
-      void
-      parseGPSData(char *gps_data_input)
-      {
-        // m_task->war("%s", gps_data_input);
-        switch (gps_data_input[4])
-        {
-          case '0':
-            std::sscanf(gps_data_input, "$,g,0,%d,%d,%d,%d,%d,%d,",
-                        &gps.year, &gps.month, &gps.day, &gps.hour, &gps.minute, &gps.second);
-            m_task->debug("%04d-%02d-%02d | %02d:%02d:%02d",
-                        gps.year, gps.month, gps.day, gps.hour, gps.minute, gps.second);
-            break;
-
-          case '1':
-            std::sscanf(gps_data_input, "$,g,1,%d,%d,%f,",
-                        &gps.valid_fix, &gps.sat, &gps.hdop);
-            m_task->debug("Valid fix: %s | Sat: %d | Hdop: %.2f", gps.valid_fix ? "true" : "false",
-                        gps.sat, gps.hdop);
-            break;
-
-          case '2':
-            std::sscanf(gps_data_input, "$,g,2,%f,%f,%f,",
-                        &gps.speed, &gps.course, &gps.altitude);
-            m_task->debug("Speed: %.2f m/s | Course: %.2f º | Altitude: %.2f m",
-                        gps.speed, gps.course, gps.altitude);
-            break;
-
-          case '3':
-            std::sscanf(gps_data_input, "$,g,3,%f,%f,",
-                        &gps.latitude, &gps.longitude);
-            m_task->debug("Latitude: %f | Longitude: %f",
-                        gps.latitude, gps.longitude);
-            m_new_gps_data = true;
-            break;
-
-          default:
-            break;
-        }
+        m_task->debug("%04d-%02d-%02d | %02d:%02d:%02d", gps.year, gps.month, gps.day, gps.hour, gps.minute, gps.second);
+        m_task->debug("Valid fix: %s | Sat: %d | Hdop: %.2f", gps.valid_fix ? "true" : "false", gps.sat, gps.hdop);
+        m_task->debug("Speed: %.2f m/s | Course: %.2f º | Altitude: %.2f m", gps.speed, gps.course, gps.altitude);
+        m_task->debug("Latitude: %f | Longitude: %f", gps.latitude, gps.longitude);
       }
     };
   }
