@@ -102,6 +102,9 @@ namespace Monitors
       void
       onResourceInitialization(void)
       {
+        inf("CPU Scaling Task started with parameters: "
+            "Set CPU In Mode: %s, Use Linux Liquorix: %s, Set Maximum CPU Frequency: %dMHz",
+            m_args.set_cpu_mode.c_str(), m_args.use_liquorix ? "true" : "false", m_args.set_max_freq);
         if(m_args.use_liquorix)
         {
           std::string cpu_freq_string_command = "cpufreq-set -u " + std::to_string(m_args.set_max_freq) + "MHz";
@@ -193,6 +196,43 @@ namespace Monitors
                 output += "| " + std::to_string((int)mhz) + " MHz ";
               }
             }
+          }
+          else
+          {
+            trace("Error reading command output. Trying method for debian 11 rpi3");
+            pclose(pipe);
+            return getCpuSpeed();
+            break;
+          }
+        }
+
+        // Close the pipe
+        pclose(pipe);
+        return output;
+      }
+
+      std::string
+      getCpuSpeed()
+      {
+        std::string output = "";
+        // Open a pipe to execute the command and read its output
+        FILE *pipe = popen("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq", "r");
+        if (!pipe)
+        {
+          war("Error executing command to read frequency.");
+          return output;
+        }
+
+        char buffer[1024];
+        // Read the output of the command line by line
+        while (!feof(pipe))
+        {
+          if (fgets(buffer, 1024, pipe) != NULL)
+          {
+            // Convert MHz value to double
+            double mhz = std::atof(buffer) / 1024.0;
+            // Append MHz value to the output string
+            output += "| " + std::to_string((int)mhz) + " MHz ";
           }
         }
 
