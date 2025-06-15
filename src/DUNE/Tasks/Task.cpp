@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -43,6 +43,7 @@
 #include <DUNE/Tasks/Exceptions.hpp>
 #include <DUNE/Tasks/Task.hpp>
 #include <DUNE/Utils/XML.hpp>
+#include <DUNE/Utils/String.hpp>
 #include <DUNE/Entities/BasicEntity.hpp>
 #include <DUNE/Entities/EntityUtils.hpp>
 
@@ -88,6 +89,11 @@ namespace DUNE
       .defaultValue("None")
       .values("None, Debug, Trace, Spew");
 
+      param(DTR_RT("Loopback Internal Messages"), m_args.loopback)
+      .defaultValue("false")
+      .description("Loopback internal messages, such as EntityState"
+                   " and EntityParameters");
+
       m_recipient = new Recipient(this, ctx);
       m_entity = new Entities::StatefulEntity(this, m_ctx);
       m_entities.push_back(m_entity);
@@ -97,6 +103,7 @@ namespace DUNE
       bind<IMC::PushEntityParameters>(this);
       bind<IMC::PopEntityParameters>(this);
       bind<IMC::QueryEntityState>(this);
+      bind<IMC::RestartSystem>(this);
     }
 
     unsigned int
@@ -204,6 +211,7 @@ namespace DUNE
       .visibility(Parameter::VISIBILITY_DEVELOPER)
       .scope(Parameter::SCOPE_GLOBAL)
       .defaultValue(scope_str)
+      .values(Parameter::scopeValues())
       .description(DTR("Scoped of the 'Active' parameter"));
 
       std::string visibility_str = Parameter::visibilityToString(def_visibility);
@@ -211,6 +219,7 @@ namespace DUNE
       .visibility(Parameter::VISIBILITY_DEVELOPER)
       .scope(Parameter::SCOPE_GLOBAL)
       .defaultValue(visibility_str)
+      .values(Parameter::visibilityValues())
       .description(DTR("Visibility of the 'Active' parameter"));
 
       param(DTR_RT("Active"), m_args.active)
@@ -228,6 +237,7 @@ namespace DUNE
       if (m_args.elabel != m_entity->getLabel())
         m_params.set(DTR_RT("Entity Label"), m_entity->getLabel());
       m_entity->setActTimes(m_args.act_time, m_args.deact_time);
+      m_entity->setLoopback(m_args.loopback);
       m_entity->reportInfo();
 
       if (m_debug_level_string == "Debug")
@@ -255,6 +265,7 @@ namespace DUNE
         {
           if (paramChanged(m_args.active))
           {
+            war("due to params active change, requesting %s", m_args.active ? "activation" : "deactivation");
             if (m_args.active)
               requestActivation();
             else
@@ -298,7 +309,10 @@ namespace DUNE
 
       m_entity->succeedActivation();
       if (m_entity->hasPendingDeactivation())
+      {
+        spew("has pending deactivation");
         requestDeactivation();
+      }
     }
 
     void
@@ -340,7 +354,10 @@ namespace DUNE
 
       m_entity->succeedDeactivation();
       if (m_entity->hasPendingActivation())
+      {
+        spew("has pending activation");
         requestActivation();
+      }
     }
 
     void
@@ -348,6 +365,16 @@ namespace DUNE
     {
       spew("deactivation failed");
       m_entity->failDeactivation(reason);
+    }
+
+    void
+    Task::restart(const IMC::RestartSystem* msg, const unsigned delay)
+    {
+      const auto text = Utils::String::str("manual restart requested by 0x%x (%hhu)",
+                                            msg->getSource(),
+                                            msg->getSourceEntity());
+
+      throw RestartNeeded(text, delay, false);
     }
 
     void
@@ -439,10 +466,11 @@ namespace DUNE
           msg->setSourceEntity(getEntityId());
       }
 
-      if ((flags & DF_LOOP_BACK) == 0)
-        m_ctx.mbus.dispatch(msg, this);
-      else
+      if ((flags & DF_LOOP_BACK) ||
+          m_args.loopback)
         m_ctx.mbus.dispatch(msg);
+      else
+        m_ctx.mbus.dispatch(msg, this);
     }
 
     void
@@ -550,6 +578,21 @@ namespace DUNE
     }
 
     void
+    Task::consume(const IMC::RestartSystem* msg)
+    {
+      if (msg->getDestination() != getSystemId())
+        return;
+
+      if (msg->getDestinationEntity() != getEntityId())
+        return;
+
+      if (msg->type != IMC::RestartSystem::RestartTypeEnum::RSTYPE_TASK)
+        return;
+
+      onRequestRestart(msg);
+    }
+
+    void
     Task::writeParamsXML(std::ostream& os) const
     {
       if (onWriteParamsXML(os))
@@ -645,15 +688,16 @@ namespace DUNE
     Task::log(IMC::LogBookEntry::TypeEnum type, const char* format, std::va_list arg_list)
     {
       char bfr[c_log_message_max_size] = {0};
+      size_t rv = 0;
 
 #if defined(DUNE_SYS_HAS_VSNPRINTF)
-      vsnprintf(bfr, sizeof(bfr), format, arg_list);
+      rv = vsnprintf(bfr, sizeof(bfr), format, arg_list);
 
 #elif defined(DUNE_SYS_HAS_VSNPRINTF_S)
-      vsnprintf_s(bfr, sizeof(bfr), sizeof(bfr) - 1, format, arg_list);
+      rv = vsnprintf_s(bfr, sizeof(bfr), sizeof(bfr) - 1, format, arg_list);
 
 #else
-      std::vsprintf(bfr, format, arg_list);
+      rv = std::vsprintf(bfr, format, arg_list);
 #endif
 
       IMC::LogBookEntry log_entry;
@@ -664,6 +708,14 @@ namespace DUNE
       log_entry.htime = Time::Clock::getSinceEpoch();
 
       dispatch(log_entry);
+      //if rv value is bigger than c_log_message_max_size, replace the last 3 bytes by "..." on buffer bfr
+      if (rv >= c_log_message_max_size - 1)
+      {
+        bfr[c_log_message_max_size - 1] = '.';
+        bfr[c_log_message_max_size - 2] = '.';
+        bfr[c_log_message_max_size - 3] = '.';
+        bfr[c_log_message_max_size - 4] = ' ';
+      }
 
       switch (type)
       {

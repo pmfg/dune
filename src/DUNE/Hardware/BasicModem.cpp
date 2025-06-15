@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -64,6 +64,9 @@ namespace DUNE
       m_line_term_out(c_line_term_out),
       m_line_trim(false)
     {
+      if (m_handle == nullptr)
+        throw std::runtime_error("Invalid I/O handle");
+        
       m_handle->flushInput();
     }
 
@@ -199,9 +202,15 @@ namespace DUNE
         }
       } else {
         if (m_lines.size()) {
-          getTask()->err(
-                         "There are %d lines in the queue. Convert to queue of bytes.",
+          getTask()->war(
+                         "[BasicModem]:There are %d lines in the queue. Convert to queue of bytes.",
                          m_lines.size());
+          while (m_lines.size() > 0) {
+            std::string line = m_lines.pop();
+            getTask()->war("[BasicModem]:line: %s", line.c_str());
+            for (size_t i = 0; i < line.size(); ++i)
+              m_bytes.push(line[i]);
+          }
         }
       }
     }
@@ -250,6 +259,7 @@ namespace DUNE
     BasicModem::readLine(void)
     {
       Time::Counter<double> timer(getTimeout());
+      //IO::Poll::poll(*m_handle, 0.1);
       return readLine(timer);
     }
 
@@ -268,7 +278,7 @@ namespace DUNE
         if (bytes_read == data_size)
           return;
       }
-
+      getTask()->war("[BasicModem]:timeout while reading %u bytes", data_size);
       throw ReadTimeout();
     }
 
@@ -285,6 +295,7 @@ namespace DUNE
         m_line.push_back(c);
 
         //!@fixme: concurrency hazard.
+        //Concurrency::ScopedMutex l(m_mutex); // Protect shared resource
         if (c == m_line_term_in[m_line_term_idx])
         {
           ++m_line_term_idx;
@@ -329,7 +340,7 @@ namespace DUNE
       txt.setDestination(getTask()->getSystemId());
       getTask()->dispatch(txt);
 
-      m_task->trace("recv: %s", Streams::sanitize(str).c_str());
+      m_task->trace("[BasicModem]:recv: %s", Streams::sanitize(str).c_str());
       m_line.clear();
 
       if (!m_skip_line.empty())
@@ -355,7 +366,7 @@ namespace DUNE
         else
           return readLine(timer);
       }
-
+      getTask()->war("[BasicModem]:timeout while reading line");
       throw ReadTimeout();
     }
 
@@ -373,7 +384,7 @@ namespace DUNE
 
       while (!isStopping())
       {
-        if (!IO::Poll::poll(*m_handle, 1.0))
+        if (!IO::Poll::poll(*m_handle, 0.01))
           continue;
 
         size_t rv = 0;
@@ -381,7 +392,7 @@ namespace DUNE
         {
           rv = m_handle->read(bfr, sizeof(bfr));
         } catch (std::runtime_error &e) {
-          m_task->war("%s: %s", Status::getString(Status::CODE_IO_ERROR), e.what());
+          m_task->war("[BasicModem]:%s: %s", Status::getString(Status::CODE_IO_ERROR), e.what());
           break;
         }
 

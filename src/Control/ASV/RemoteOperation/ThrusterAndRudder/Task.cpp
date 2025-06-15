@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -83,6 +83,7 @@ namespace Control
             addActionButton("Stop");
             addActionButton("PowerOff");
             addActionButton("Restart Log");
+            // addActionButton("Toggle SPOT");
             addActionButton("Arm");
             addActionButton("Disarm");
             addActionButton("Enable CAS");
@@ -166,6 +167,9 @@ namespace Control
               enableCAS(true);
             else if (tuples.get("Disable CAS", 0))
               enableCAS(false);
+
+            else if (tuples.get("Toggle SPOT", 0))
+              toggleSpot();
           }
 
           void
@@ -214,9 +218,9 @@ namespace Control
           void
           sendPowerOff(void)
           {
-            IMC::LoggingControl log;
-            log.op = LoggingControl::COP_REQUEST_STOP;
-            dispatch(log);
+            IMC::LoggingControl lc;
+            lc.op = LoggingControl::COP_REQUEST_STOP;
+            dispatch(lc);
 
             Counter<double> timer(3);
             while (!stopping())
@@ -254,10 +258,19 @@ namespace Control
           void
           restartLog(void)
           {
-            IMC::LoggingControl log;
-            log.name = m_log_name;
-            log.op = LoggingControl::COP_REQUEST_START;
-            dispatch(log);
+            IMC::LoggingControl lc;
+            lc.name = m_log_name;
+            lc.op = LoggingControl::COP_REQUEST_START;
+            dispatch(lc);
+          }
+
+          void
+          toggleSpot(void)
+          {
+            IMC::PowerChannelControl pcc;
+            pcc.name = "SPOT_C";
+            pcc.op = IMC::PowerChannelControl::PCC_OP_TOGGLE;
+            dispatch(pcc);
           }
 
           void

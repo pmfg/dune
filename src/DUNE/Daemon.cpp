@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -221,8 +221,8 @@ namespace DUNE
     {
       call_reboot = true;
       inf(DTR("Got message to reboot system"));
+      stop();
     }
-    stop();
   }
 
   void

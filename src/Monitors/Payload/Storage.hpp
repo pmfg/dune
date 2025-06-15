@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -62,11 +62,15 @@ namespace Monitors
         if (m_payload[msg->getId()] != nullptr)
         {
           Memory::clear(m_payload[msg->getId()]);
-          m_payload[msg->getId()] = msg;
+          IMC::Message* new_ptr = msg->clone();
+          new_ptr->setTimeStamp(msg->getTimeStamp());
+          m_payload[msg->getId()] = new_ptr;
           return false;
         }
 
-        m_payload[msg->getId()] = msg;
+        IMC::Message* new_ptr = msg->clone();
+        new_ptr->setTimeStamp(msg->getTimeStamp());
+        m_payload[msg->getId()] = new_ptr;
         return true;
       }
 
@@ -128,11 +132,11 @@ namespace Monitors
         unsigned eid = msg->getSourceEntity();
         if (m_payload.find(eid) == m_payload.end())
         {
-          //m_task->spew("Entity %d not found in payload", eid);
+          // m_task->spew("Entity %d not found in payload", eid);
           return;
         }
 
-        if (m_payload[eid].store(msg->clone()))
+        if (m_payload[eid].store(msg))
         {
           m_task->debug("Message %s stored", msg->getName());
           m_msg_count++;

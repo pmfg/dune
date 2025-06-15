@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -52,8 +52,8 @@ namespace DUNE
       ~Fragments(void);
 
     private:
-      static int s_uid;
-      int m_uid;
+      static uint8_t s_uid;
+      uint8_t m_uid;
       int m_num_frags;
       std::vector<IMC::MessagePart*> m_fragments;
     };

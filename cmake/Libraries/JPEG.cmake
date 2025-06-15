@@ -1,5 +1,5 @@
 ############################################################################
-# Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      #
+# Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      #
 # Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  #
 ############################################################################
 # This file is part of DUNE: Unified Navigation Environment.               #
@@ -37,4 +37,4 @@ if(HAVE_LIB_JPEG AND DUNE_SYS_HAS_JPEGLIB_H)
 else(HAVE_LIB_JPEG AND DUNE_SYS_HAS_JPEGLIB_H)
   set(DUNE_SYS_HAS_JPEG 0 CACHE INTERNAL "JPEG library")
   set(DUNE_USING_JPEG 0 CACHE INTERNAL "JPEG library")
-endif(HAVE_LIB_JPEG AND DUNE_SYS_HAS_JPEGLIB_H)
+endif(HAVE_LIB_JPEG AND HAVE_LIB_JPEG_80 AND DUNE_SYS_HAS_JPEGLIB_H)

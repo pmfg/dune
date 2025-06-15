@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -63,6 +63,10 @@ namespace DUNE
       //! Entity reservation callback.
       void
       onEntityReservation(void);
+
+      //! Entity resolution callback.
+      void
+      onEntityResolution(void);
 
       //! Consumer for Brake message.
       //! @param brake message to consume.
@@ -513,6 +517,12 @@ namespace DUNE
       uint32_t m_scope_ref;
       //! Maximum admitted track length
       double m_max_track_length;
+      //! Echo Sounder Entity
+      unsigned int m_fls_entity;
+      //! Flag to use radius to final point instead of ETA
+      bool m_use_radius_to_endpoint;
+      //! Radius to endpoint
+      double m_end_radius;
     };
   }
 }

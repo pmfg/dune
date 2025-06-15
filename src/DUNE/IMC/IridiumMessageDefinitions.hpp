@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -67,7 +67,7 @@ namespace DUNE
       uint16_t source;
       //! The imc id of this message's destination
       uint16_t destination;
-      //! The message id (can wither be an IMC id or an Iridium extension
+      //! The message id (can either be an IMC id or an Iridium extension
       uint16_t msg_id;
 
       //! Parse a received message received into an Iridium message

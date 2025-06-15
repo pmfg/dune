@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -142,7 +142,7 @@ namespace Plan
       //! Get remaining time in calibration
       //! @return remaining time
       float
-      getRemaining(void) const
+      getRemaining(void)
       {
         return m_timer.getRemaining();
       }
@@ -150,7 +150,7 @@ namespace Plan
       //! Get elapsed calibration time
       //! @return elapsed calibration time
       float
-      getElapsedTime(void) const
+      getElapsedTime(void)
       {
         return m_time - m_timer.getRemaining();
       }

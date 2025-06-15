@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -88,11 +88,6 @@ namespace Sensors
         Hardware::BasicDeviceDriver(name, ctx),
         m_handle(NULL)
       {
-        // Define configuration parameters.
-        paramActive(Tasks::Parameter::SCOPE_GLOBAL,
-                    Tasks::Parameter::VISIBILITY_DEVELOPER, 
-                    true);
-
         param("IO Port - Device", m_args.io_dev)
         .defaultValue("")
         .description("IO device URI in the form \"tcp://ADDRESS:PORT\" "
@@ -100,6 +95,12 @@ namespace Sensors
 
         m_bfr.resize(c_read_buffer_size);
         m_nmea5_wait_fg = false;
+      }
+
+      void
+      onUpdateParameters(void)
+      {
+        BasicDeviceDriver::onUpdateParameters();
       }
 
       //! Try to connect to the device.

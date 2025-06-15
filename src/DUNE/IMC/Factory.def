@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -28,7 +28,7 @@
 //***************************************************************************
 // Automatically generated.                                                 *
 //***************************************************************************
-// IMC XML MD5: 300c92f76c47d1d9e32d8421679e98eb                            *
+// IMC XML MD5: 04ce1d1dac399100b9207708c4b21b88                            *
 //***************************************************************************
 
 MESSAGE(1, EntityState)
@@ -45,6 +45,7 @@ MESSAGE(14, EntityActivationState)
 MESSAGE(15, QueryEntityActivationState)
 MESSAGE(16, VehicleOperationalLimits)
 MESSAGE(20, MsgList)
+MESSAGE(21, RamUsage)
 MESSAGE(50, SimulatedState)
 MESSAGE(51, LeakSimulation)
 MESSAGE(52, UASimulation)
@@ -328,6 +329,7 @@ MESSAGE(851, SoiPlan)
 MESSAGE(852, SoiCommand)
 MESSAGE(853, SoiState)
 MESSAGE(877, MessagePart)
+MESSAGE(878, MessagePartControl)
 MESSAGE(888, NeptusBlob)
 MESSAGE(889, Aborted)
 MESSAGE(890, UsblAngles)
@@ -358,6 +360,7 @@ MESSAGE(1014, CurrentProfile)
 MESSAGE(1015, CurrentProfileCell)
 MESSAGE(1016, ADCPBeam)
 MESSAGE(1017, Frequency)
+MESSAGE(1018, WaveSpectrumParameters)
 MESSAGE(2000, GpioState)
 MESSAGE(2001, GpioStateGet)
 MESSAGE(2002, GpioStateSet)
@@ -365,4 +368,9 @@ MESSAGE(2003, ColoredDissolvedOrganicMatter)
 MESSAGE(2004, FluorescentDissolvedOrganicMatter)
 MESSAGE(2006, TotalMagIntensity)
 MESSAGE(2010, CommRestriction)
+MESSAGE(2016, QueryTypedEntityParameters)
+MESSAGE(2017, TypedEntityParameter)
+MESSAGE(2018, ValuesIf)
+MESSAGE(2021, VersionInfo)
+MESSAGE(2022, TotalHeading)
 #undef MESSAGE

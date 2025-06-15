@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -58,8 +58,8 @@ namespace Transports
       //! Constructor.
       //! @param[in] task parent task.
       //! @param[in] uart serial port connected to the ISU.
-      Driver(Tasks::Task* task, SerialPort* uart, bool use_9523N, double wait_boot):
-        HayesModem(task, uart),
+      Driver(Tasks::Task* task, IO::Handle* handle, bool use_9523N, double wait_boot, double rssi_time_check):
+        HayesModem(task, handle),
         m_session_result_read(true),
         m_sbd_ring(false),
         m_queued_mt(0)
@@ -67,7 +67,7 @@ namespace Transports
         m_use_9523 = use_9523N;
         m_wait_boot = wait_boot;
         setLineTrim(true);
-        m_rssi_wdog.setTop(45.0);
+        m_rssi_wdog.setTop(rssi_time_check);
       }
 
       //! Destructor.

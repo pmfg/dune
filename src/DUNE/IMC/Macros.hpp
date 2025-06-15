@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -28,7 +28,7 @@
 //***************************************************************************
 // Automatically generated.                                                 *
 //***************************************************************************
-// IMC XML MD5: 300c92f76c47d1d9e32d8421679e98eb                            *
+// IMC XML MD5: 04ce1d1dac399100b9207708c4b21b88                            *
 //***************************************************************************
 
 #ifndef DUNE_IMC_MACROS_HPP_INCLUDED_
@@ -62,6 +62,8 @@
 #define DUNE_IMC_VEHICLEOPERATIONALLIMITS 16
 //! MsgList identification number.
 #define DUNE_IMC_MSGLIST 20
+//! RamUsage identification number.
+#define DUNE_IMC_RAMUSAGE 21
 //! SimulatedState identification number.
 #define DUNE_IMC_SIMULATEDSTATE 50
 //! LeakSimulation identification number.
@@ -628,6 +630,8 @@
 #define DUNE_IMC_SOISTATE 853
 //! MessagePart identification number.
 #define DUNE_IMC_MESSAGEPART 877
+//! MessagePartControl identification number.
+#define DUNE_IMC_MESSAGEPARTCONTROL 878
 //! NeptusBlob identification number.
 #define DUNE_IMC_NEPTUSBLOB 888
 //! Aborted identification number.
@@ -688,6 +692,8 @@
 #define DUNE_IMC_ADCPBEAM 1016
 //! Frequency identification number.
 #define DUNE_IMC_FREQUENCY 1017
+//! WaveSpectrumParameters identification number.
+#define DUNE_IMC_WAVESPECTRUMPARAMETERS 1018
 //! GpioState identification number.
 #define DUNE_IMC_GPIOSTATE 2000
 //! GpioStateGet identification number.
@@ -702,5 +708,15 @@
 #define DUNE_IMC_TOTALMAGINTENSITY 2006
 //! CommRestriction identification number.
 #define DUNE_IMC_COMMRESTRICTION 2010
+//! QueryTypedEntityParameters identification number.
+#define DUNE_IMC_QUERYTYPEDENTITYPARAMETERS 2016
+//! TypedEntityParameter identification number.
+#define DUNE_IMC_TYPEDENTITYPARAMETER 2017
+//! ValuesIf identification number.
+#define DUNE_IMC_VALUESIF 2018
+//! VersionInfo identification number.
+#define DUNE_IMC_VERSIONINFO 2021
+//! TotalHeading identification number.
+#define DUNE_IMC_TOTALHEADING 2022
 
 #endif

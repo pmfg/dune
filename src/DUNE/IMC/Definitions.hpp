@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -28,7 +28,7 @@
 //***************************************************************************
 // Automatically generated.                                                 *
 //***************************************************************************
-// IMC XML MD5: 300c92f76c47d1d9e32d8421679e98eb                            *
+// IMC XML MD5: 04ce1d1dac399100b9207708c4b21b88                            *
 //***************************************************************************
 
 #ifndef DUNE_IMC_DEFINITIONS_HPP_INCLUDED_
@@ -357,7 +357,9 @@ namespace DUNE
         //! Report.
         OP_REPORT = 0,
         //! Query.
-        OP_QUERY = 1
+        OP_QUERY = 1,
+        //! Reload.
+        OP_RELOAD = 2
       };
 
       //! operation.
@@ -571,7 +573,9 @@ namespace DUNE
         //! Dune.
         RSTYPE_DUNE = 1,
         //! System.
-        RSTYPE_SYSTEM = 2
+        RSTYPE_SYSTEM = 2,
+        //! Task.
+        RSTYPE_TASK = 3
       };
 
       //! Restart Type.
@@ -1123,6 +1127,73 @@ namespace DUNE
 
       void
       setDestinationEntityNested(uint8_t value__);
+    };
+
+    //! RAM Usage.
+    class RamUsage: public Message
+    {
+    public:
+      //! Ussage.
+      fp64_t value;
+
+      static uint16_t
+      getIdStatic(void)
+      {
+        return 21;
+      }
+
+      RamUsage(void);
+
+      RamUsage*
+      clone(void) const
+      {
+        return new RamUsage(*this);
+      }
+
+      void
+      clear(void);
+
+      bool
+      fieldsEqual(const Message& msg__) const;
+
+      int
+      validate(void) const;
+
+      uint8_t*
+      serializeFields(uint8_t* bfr__) const;
+
+      uint16_t
+      deserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      reverseDeserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      getId(void) const
+      {
+        return RamUsage::getIdStatic();
+      }
+
+      const char*
+      getName(void) const
+      {
+        return "RamUsage";
+      }
+
+      unsigned
+      getFixedSerializationSize(void) const
+      {
+        return 8;
+      }
+
+      fp64_t
+      getValueFP(void) const;
+
+      void
+      setValueFP(fp64_t val);
+
+      void
+      fieldsToJSON(std::ostream& os__, unsigned nindent__) const;
     };
 
     //! Simulated State.
@@ -2450,7 +2521,19 @@ namespace DUNE
         //! Chlorophyll.
         PROF_CHLOROPHYLL = 5,
         //! Turbidity.
-        PROF_TURBIDITY = 6
+        PROF_TURBIDITY = 6,
+        //! Current Velocity In x.
+        PROF_CURRENT_VELOCITY_U = 7,
+        //! Current Velocity In y.
+        PROF_CURRENT_VELOCITY_V = 8,
+        //! Absolute Wind Average.
+        PROF_ABSOLUTE_WIND_AVG = 9,
+        //! Absolute Wind Maximum.
+        PROF_ABSOLUTE_WIND_MAX = 10,
+        //! Dissolved Organic Matter.
+        PROF_DISS_ORGANIC_MATTER = 11,
+        //! Dissolved Oxygen.
+        PROF_DISS_OXYGEN = 12
       };
 
       //! Parameter.
@@ -5441,8 +5524,10 @@ namespace DUNE
         STATUS_INPUT_FAILURE = 101,
         //! Error trying to send acoustic text.
         STATUS_ERROR = 102,
+        //! Invalid address.
+        STATUS_INV_ADDR = 103,
         //! Message Type is not defined or is unsupported.
-        STATUS_UNSUPPORTED = 666
+        STATUS_UNSUPPORTED = 255
       };
 
       //! Request Identifier.
@@ -7605,7 +7690,9 @@ namespace DUNE
         //! Echo Sounder.
         ST_ECHOSOUNDER = 1,
         //! Multibeam.
-        ST_MULTIBEAM = 2
+        ST_MULTIBEAM = 2,
+        //! Pencil Beam.
+        ST_PENCILBEAM = 3
       };
 
       //! Type.
@@ -9629,7 +9716,9 @@ namespace DUNE
         //! Report.
         OP_REPORT = 0,
         //! Query.
-        OP_QUERY = 1
+        OP_QUERY = 1,
+        //! Register.
+        OP_REGISTER = 2
       };
 
       //! operation.
@@ -18498,7 +18587,9 @@ namespace DUNE
         //! Temporary Error.
         TSTAT_TEMPORARY_FAILURE = 102,
         //! Permanent Failure.
-        TSTAT_PERMANENT_FAILURE = 103
+        TSTAT_PERMANENT_FAILURE = 103,
+        //! Invalid Address.
+        TSTAT_INV_ADDR = 104
       };
 
       //! Request Identifier.
@@ -23242,7 +23333,9 @@ namespace DUNE
         //! Message has been sent.
         UTS_SENT = 8,
         //! Message has been acknowledged by the destination.
-        UTS_DELIVERED = 9
+        UTS_DELIVERED = 9,
+        //! No transducer.
+        UTS_NO_TRANSDUCER = 10
       };
 
       //! Sequence Id.
@@ -24242,6 +24335,86 @@ namespace DUNE
       getVariableSerializationSize(void) const
       {
         return IMC::getSerializationSize(data);
+      }
+
+      void
+      fieldsToJSON(std::ostream& os__, unsigned nindent__) const;
+    };
+
+    //! Message Fragment Control.
+    class MessagePartControl: public Message
+    {
+    public:
+      //! Operation.
+      enum OperationEnum
+      {
+        //! Status Received.
+        OP_STATUS_RECEIVED = 0,
+        //! Request Retransmit.
+        OP_REQUEST_RETRANSMIT = 1
+      };
+
+      //! Transmission Unique Id.
+      uint8_t uid;
+      //! Operation.
+      uint8_t op;
+      //! Fragments IDs.
+      std::string frag_ids;
+
+      static uint16_t
+      getIdStatic(void)
+      {
+        return 878;
+      }
+
+      MessagePartControl(void);
+
+      MessagePartControl*
+      clone(void) const
+      {
+        return new MessagePartControl(*this);
+      }
+
+      void
+      clear(void);
+
+      bool
+      fieldsEqual(const Message& msg__) const;
+
+      int
+      validate(void) const;
+
+      uint8_t*
+      serializeFields(uint8_t* bfr__) const;
+
+      uint16_t
+      deserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      reverseDeserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      getId(void) const
+      {
+        return MessagePartControl::getIdStatic();
+      }
+
+      const char*
+      getName(void) const
+      {
+        return "MessagePartControl";
+      }
+
+      unsigned
+      getFixedSerializationSize(void) const
+      {
+        return 2;
+      }
+
+      unsigned
+      getVariableSerializationSize(void) const
+      {
+        return IMC::getSerializationSize(frag_ids);
       }
 
       void
@@ -26200,7 +26373,7 @@ namespace DUNE
       //! Amplitude.
       fp32_t amp;
       //! Correlation.
-      int8_t cor;
+      uint8_t cor;
 
       static uint16_t
       getIdStatic(void)
@@ -26353,7 +26526,9 @@ namespace DUNE
         //! ned.
         UTF_NED = 0x02,
         //! beams.
-        UTF_BEAMS = 0x04
+        UTF_BEAMS = 0x04,
+        //! enu.
+        UTF_ENU = 0x08
       };
 
       //! Number of Beams.
@@ -26503,6 +26678,119 @@ namespace DUNE
 
       void
       setValueFP(fp64_t val);
+
+      void
+      fieldsToJSON(std::ostream& os__, unsigned nindent__) const;
+    };
+
+    //! Wave Spectrum Parameters.
+    class WaveSpectrumParameters: public Message
+    {
+    public:
+      //! Significant Wave Height Hm0.
+      fp32_t sig_wave_height_hm0;
+      //! Wave Peak Direction.
+      fp32_t wave_peak_direction;
+      //! Wave Peak Period.
+      fp32_t wave_peak_period;
+      //! Wave Height Wind Hm0.
+      fp32_t wave_height_wind_hm0;
+      //! Wave Height Swell Hm0.
+      fp32_t wave_height_swell_hm0;
+      //! Wave Peak Period Wind.
+      fp32_t wave_peak_period_wind;
+      //! Wave Peak Period Swell.
+      fp32_t wave_peak_period_swell;
+      //! Wave Peak Direction Wind.
+      fp32_t wave_peak_direction_wind;
+      //! Wave Peak Direction Swell.
+      fp32_t wave_peak_direction_swell;
+      //! Wave Mean Direction.
+      fp32_t wave_mean_direction;
+      //! Wave Mean Period Tm02.
+      fp32_t wave_mean_period_tm02;
+      //! Wave Height Hmax.
+      fp32_t wave_height_hmax;
+      //! Wave Height Crest.
+      fp32_t wave_height_crest;
+      //! Wave Height Trough.
+      fp32_t wave_height_trough;
+      //! Wave Period Tmax.
+      fp32_t wave_period_tmax;
+      //! Wave Period Tz.
+      fp32_t wave_period_tz;
+      //! Significant Wave Height H1/3.
+      fp32_t significant_wave_height_h1_3;
+      //! Mean Spreading Angle.
+      fp32_t mean_spreading_angle;
+      //! First Order Spread.
+      fp32_t first_order_spread;
+      //! Long Crestedness Parameters.
+      fp32_t long_crestedness_parameters;
+      //! Heading.
+      fp32_t heading;
+      //! Pitch.
+      fp32_t pitch;
+      //! Roll.
+      fp32_t roll;
+      //! External Heading.
+      fp32_t external_heading;
+      //! StDev Heading.
+      fp32_t stdev_heading;
+      //! StDev Pitch.
+      fp32_t stdev_pitch;
+      //! StDev Roll.
+      fp32_t stdev_roll;
+
+      static uint16_t
+      getIdStatic(void)
+      {
+        return 1018;
+      }
+
+      WaveSpectrumParameters(void);
+
+      WaveSpectrumParameters*
+      clone(void) const
+      {
+        return new WaveSpectrumParameters(*this);
+      }
+
+      void
+      clear(void);
+
+      bool
+      fieldsEqual(const Message& msg__) const;
+
+      int
+      validate(void) const;
+
+      uint8_t*
+      serializeFields(uint8_t* bfr__) const;
+
+      uint16_t
+      deserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      reverseDeserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      getId(void) const
+      {
+        return WaveSpectrumParameters::getIdStatic();
+      }
+
+      const char*
+      getName(void) const
+      {
+        return "WaveSpectrumParameters";
+      }
+
+      unsigned
+      getFixedSerializationSize(void) const
+      {
+        return 108;
+      }
 
       void
       fieldsToJSON(std::ostream& os__, unsigned nindent__) const;
@@ -27003,6 +27291,472 @@ namespace DUNE
       {
         return IMC::getSerializationSize(reason);
       }
+
+      void
+      fieldsToJSON(std::ostream& os__, unsigned nindent__) const;
+    };
+
+    //! Values If.
+    class ValuesIf: public Message
+    {
+    public:
+      //! Param.
+      std::string param;
+      //! Value.
+      std::string value;
+      //! Values List.
+      std::string values_list;
+
+      static uint16_t
+      getIdStatic(void)
+      {
+        return 2018;
+      }
+
+      ValuesIf(void);
+
+      ValuesIf*
+      clone(void) const
+      {
+        return new ValuesIf(*this);
+      }
+
+      void
+      clear(void);
+
+      bool
+      fieldsEqual(const Message& msg__) const;
+
+      int
+      validate(void) const;
+
+      uint8_t*
+      serializeFields(uint8_t* bfr__) const;
+
+      uint16_t
+      deserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      reverseDeserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      getId(void) const
+      {
+        return ValuesIf::getIdStatic();
+      }
+
+      const char*
+      getName(void) const
+      {
+        return "ValuesIf";
+      }
+
+      unsigned
+      getFixedSerializationSize(void) const
+      {
+        return 0;
+      }
+
+      unsigned
+      getVariableSerializationSize(void) const
+      {
+        return IMC::getSerializationSize(param) + IMC::getSerializationSize(value) + IMC::getSerializationSize(values_list);
+      }
+
+      void
+      fieldsToJSON(std::ostream& os__, unsigned nindent__) const;
+    };
+
+    //! Typed Entity Parameter.
+    class TypedEntityParameter: public Message
+    {
+    public:
+      //! Type.
+      enum TypeEnum
+      {
+        //! Boolean Domain.
+        TYPE_BOOL = 1,
+        //! Integer Domain.
+        TYPE_INT = 2,
+        //! Float Domain.
+        TYPE_FLOAT = 3,
+        //! String Domain.
+        TYPE_STRING = 4,
+        //! List of Booleans.
+        TYPE_LIST_BOOL = 5,
+        //! List of Integers.
+        TYPE_LIST_INT = 6,
+        //! List of Floats.
+        TYPE_LIST_FLOAT = 7,
+        //! List of Strings.
+        TYPE_LIST_STRING = 8
+      };
+
+      //! Visibility.
+      enum VisibilityEnum
+      {
+        //! User.
+        VISIBILITY_USER = 0,
+        //! Developer.
+        VISIBILITY_DEVELOPER = 1
+      };
+
+      //! Scope.
+      enum ScopeEnum
+      {
+        //! Global.
+        SCOPE_GLOBAL = 0,
+        //! Idle.
+        SCOPE_IDLE = 1,
+        //! Plan.
+        SCOPE_PLAN = 2,
+        //! Maneuver.
+        SCOPE_MANEUVER = 3
+      };
+
+      //! Parameter Name.
+      std::string name;
+      //! Type.
+      uint8_t type;
+      //! Default Value.
+      std::string default_value;
+      //! Units.
+      std::string units;
+      //! Description.
+      std::string description;
+      //! Values List.
+      std::string values_list;
+      //! Min Value.
+      fp32_t min_value;
+      //! Max Value.
+      fp32_t max_value;
+      //! List Min Size.
+      uint8_t list_min_size;
+      //! List Max Size.
+      uint8_t list_max_size;
+      //! Values If List.
+      MessageList<ValuesIf> values_if_list;
+      //! Visibility.
+      uint8_t visibility;
+      //! Scope.
+      uint8_t scope;
+
+      static uint16_t
+      getIdStatic(void)
+      {
+        return 2017;
+      }
+
+      TypedEntityParameter(void);
+
+      TypedEntityParameter*
+      clone(void) const
+      {
+        return new TypedEntityParameter(*this);
+      }
+
+      void
+      clear(void);
+
+      bool
+      fieldsEqual(const Message& msg__) const;
+
+      int
+      validate(void) const;
+
+      uint8_t*
+      serializeFields(uint8_t* bfr__) const;
+
+      uint16_t
+      deserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      reverseDeserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      getId(void) const
+      {
+        return TypedEntityParameter::getIdStatic();
+      }
+
+      const char*
+      getName(void) const
+      {
+        return "TypedEntityParameter";
+      }
+
+      unsigned
+      getFixedSerializationSize(void) const
+      {
+        return 13;
+      }
+
+      unsigned
+      getVariableSerializationSize(void) const
+      {
+        return IMC::getSerializationSize(name) + IMC::getSerializationSize(default_value) + IMC::getSerializationSize(units) + IMC::getSerializationSize(description) + IMC::getSerializationSize(values_list) + values_if_list.getSerializationSize();
+      }
+
+      void
+      fieldsToJSON(std::ostream& os__, unsigned nindent__) const;
+
+    protected:
+      void
+      setTimeStampNested(double value__);
+
+      void
+      setSourceNested(uint16_t value__);
+
+      void
+      setSourceEntityNested(uint8_t value__);
+
+      void
+      setDestinationNested(uint16_t value__);
+
+      void
+      setDestinationEntityNested(uint8_t value__);
+    };
+
+    //! Query Typed Entity Parameters.
+    class QueryTypedEntityParameters: public Message
+    {
+    public:
+      //! Operation.
+      enum OperationEnum
+      {
+        //! Request.
+        OP_REQUEST = 0,
+        //! Reply.
+        OP_REPLY = 1
+      };
+
+      //! Operation.
+      uint8_t op;
+      //! Request identitier.
+      uint32_t request_id;
+      //! Entity Name.
+      std::string entity_name;
+      //! Parameters.
+      MessageList<TypedEntityParameter> parameters;
+
+      static uint16_t
+      getIdStatic(void)
+      {
+        return 2016;
+      }
+
+      QueryTypedEntityParameters(void);
+
+      QueryTypedEntityParameters*
+      clone(void) const
+      {
+        return new QueryTypedEntityParameters(*this);
+      }
+
+      void
+      clear(void);
+
+      bool
+      fieldsEqual(const Message& msg__) const;
+
+      int
+      validate(void) const;
+
+      uint8_t*
+      serializeFields(uint8_t* bfr__) const;
+
+      uint16_t
+      deserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      reverseDeserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      getId(void) const
+      {
+        return QueryTypedEntityParameters::getIdStatic();
+      }
+
+      const char*
+      getName(void) const
+      {
+        return "QueryTypedEntityParameters";
+      }
+
+      unsigned
+      getFixedSerializationSize(void) const
+      {
+        return 5;
+      }
+
+      unsigned
+      getVariableSerializationSize(void) const
+      {
+        return IMC::getSerializationSize(entity_name) + parameters.getSerializationSize();
+      }
+
+      void
+      fieldsToJSON(std::ostream& os__, unsigned nindent__) const;
+
+    protected:
+      void
+      setTimeStampNested(double value__);
+
+      void
+      setSourceNested(uint16_t value__);
+
+      void
+      setSourceEntityNested(uint8_t value__);
+
+      void
+      setDestinationNested(uint16_t value__);
+
+      void
+      setDestinationEntityNested(uint8_t value__);
+    };
+
+    //! Version Info.
+    class VersionInfo: public Message
+    {
+    public:
+      //! Operation.
+      enum OperationEnum
+      {
+        //! Reply.
+        OP_REPLY = 0,
+        //! Query.
+        OP_QUERY = 1
+      };
+
+      //! Operation.
+      uint8_t op;
+      //! Version.
+      std::string version;
+      //! Description.
+      std::string description;
+
+      static uint16_t
+      getIdStatic(void)
+      {
+        return 2021;
+      }
+
+      VersionInfo(void);
+
+      VersionInfo*
+      clone(void) const
+      {
+        return new VersionInfo(*this);
+      }
+
+      void
+      clear(void);
+
+      bool
+      fieldsEqual(const Message& msg__) const;
+
+      int
+      validate(void) const;
+
+      uint8_t*
+      serializeFields(uint8_t* bfr__) const;
+
+      uint16_t
+      deserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      reverseDeserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      getId(void) const
+      {
+        return VersionInfo::getIdStatic();
+      }
+
+      const char*
+      getName(void) const
+      {
+        return "VersionInfo";
+      }
+
+      unsigned
+      getFixedSerializationSize(void) const
+      {
+        return 1;
+      }
+
+      unsigned
+      getVariableSerializationSize(void) const
+      {
+        return IMC::getSerializationSize(version) + IMC::getSerializationSize(description);
+      }
+
+      void
+      fieldsToJSON(std::ostream& os__, unsigned nindent__) const;
+    };
+
+    //! Total Heading.
+    class TotalHeading: public Message
+    {
+    public:
+      //! Value.
+      fp32_t value;
+
+      static uint16_t
+      getIdStatic(void)
+      {
+        return 2022;
+      }
+
+      TotalHeading(void);
+
+      TotalHeading*
+      clone(void) const
+      {
+        return new TotalHeading(*this);
+      }
+
+      void
+      clear(void);
+
+      bool
+      fieldsEqual(const Message& msg__) const;
+
+      int
+      validate(void) const;
+
+      uint8_t*
+      serializeFields(uint8_t* bfr__) const;
+
+      uint16_t
+      deserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      reverseDeserializeFields(const uint8_t* bfr__, uint16_t size__);
+
+      uint16_t
+      getId(void) const
+      {
+        return TotalHeading::getIdStatic();
+      }
+
+      const char*
+      getName(void) const
+      {
+        return "TotalHeading";
+      }
+
+      unsigned
+      getFixedSerializationSize(void) const
+      {
+        return 4;
+      }
+
+      fp64_t
+      getValueFP(void) const;
+
+      void
+      setValueFP(fp64_t val);
 
       void
       fieldsToJSON(std::ostream& os__, unsigned nindent__) const;

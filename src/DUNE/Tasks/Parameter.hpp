@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -89,11 +89,17 @@ namespace DUNE
       static const char*
       visibilityToString(Visibility v);
 
+      static std::string
+      visibilityValues(void);
+
       static Scope
       scopeFromString(const std::string& s);
 
       static const char*
       scopeToString(Scope s);
+
+      static std::string
+      scopeValues(void);
 
       //! Constructor.
       Parameter(const std::string& param_name, const std::string& type_name);

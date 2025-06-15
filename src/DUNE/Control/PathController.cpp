@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -26,6 +26,9 @@
 //***************************************************************************
 // Author: Eduardo Marques                                                  *
 //***************************************************************************
+
+// ISO C++ 98 headers.
+#include <limits>
 
 // DUNE headers.
 #include <DUNE/Control/PathController.hpp>
@@ -199,12 +202,24 @@ namespace DUNE
       .units(Units::Meter)
       .description("Maximum admissible track length");
 
+      param("Bottom Track -- FLS Entity Label", m_btd.args.fls_elabel)
+      .defaultValue("Echo Sounder")
+      .description("Entity label of the Forward Looking Sonar (FLS).");
+
       m_ctx.config.get("General", "Absolute Maximum Depth", "50.0", m_btd.args.depth_limit);
       m_btd.args.depth_limit -= c_depth_margin;
 
       m_ctx.config.get("General", "Absolute Minimum Altitude", "1.2", m_btd.args.min_alt);
 
       m_ctx.config.get("General", "Time Of Arrival Factor", "5.0", m_time_factor);
+
+      param("Use Radius To Endpoint", m_use_radius_to_endpoint)
+      .defaultValue("false")
+      .description("Use radius to endpoint instead of ETA.");
+      
+      param("Radius To Endpoint", m_end_radius)
+      .defaultValue("5")
+      .description("Radius around endpoint to consider maneuver as done.");
 
       bind<IMC::Brake>(this);
       bind<IMC::ControlLoops>(this);
@@ -289,6 +304,22 @@ namespace DUNE
     {
       m_bt_entity = reserveEntity<DUNE::Entities::BasicEntity>(Utils::String::str("%s - Bottom Track", getEntityLabel()));
       m_btd.args.entity = m_bt_entity;
+    }
+
+    void
+    PathController::onEntityResolution()
+    {
+      // Resolve FLS entity
+      m_fls_entity = std::numeric_limits<unsigned int>::max();
+      try
+      {
+        if (!m_btd.args.fls_elabel.empty())
+          m_fls_entity = resolveEntity(m_btd.args.fls_elabel);
+      }
+      catch(const std::runtime_error& e)
+      {
+        war("Failed to resolve FLS entity (%s).", m_btd.args.fls_elabel.c_str());
+      }
     }
 
     void
@@ -583,7 +614,7 @@ namespace DUNE
     PathController::consume(const IMC::Distance* dist)
     {
       if (isTrackingBottom())
-        m_btrack->onDistance(dist);
+        m_btrack->onDistance(dist, m_fls_entity);
     }
 
     void
@@ -670,6 +701,8 @@ namespace DUNE
         WGS84::displacement(lat, lon, 0,
                             m_pcs.end_lat, m_pcs.end_lon, 0,
                             &m_ts.end.x, &m_ts.end.y);
+        Coordinates::getBearingAndRange(m_ts.start, m_ts.end,
+                                        &m_ts.track_bearing, &m_ts.track_length);
       }
 
       const double now = Clock::get();
@@ -771,11 +804,35 @@ namespace DUNE
 
         const bool was_nearby = m_ts.nearby;
 
-        if (!m_ts.nearby && m_ts.eta <= 0)
+        if (!m_use_radius_to_endpoint)
         {
-          m_ts.eta = 0;
-          m_ts.nearby = true;
-          m_ts.end_time = m_ts.now;
+          if (!m_ts.nearby && m_ts.eta <= 0)
+          {
+            m_ts.eta = 0;
+            m_ts.nearby = true;
+            m_ts.end_time = m_ts.now;
+          }
+        }
+        else
+        {
+          double lat = m_estate.lat;
+          double lon = m_estate.lon;
+          // Check if we are within the radius of final point
+          WGS84::displace(m_estate.x, m_estate.y,
+                          &lat, &lon);
+
+          double x = 0.0;
+          double y = 0.0;
+          WGS84::displacement(lat, lon, 0,
+                              m_ts.lat_en, m_ts.lon_en, 0,
+                              &x, &y);
+          
+          if (!m_ts.nearby && Math::norm(x, y) <= m_end_radius)
+          {
+            m_ts.eta = 0;
+            m_ts.nearby = true;
+            m_ts.end_time = m_ts.now;
+          }
         }
 
         if (!was_nearby && m_ts.nearby)
@@ -1101,13 +1158,14 @@ namespace DUNE
     {
       if (unit == IMC::Z_HEIGHT)
         return m_estate.height;
-
-      if (unit == IMC::Z_ALTITUDE)
+      else if (unit == IMC::Z_ALTITUDE)
         return m_estate.alt;
-
-      if (unit == IMC::Z_DEPTH)
+      else if (unit == IMC::Z_DEPTH)
         return m_estate.depth;
-
+      else if (unit == IMC::Z_NONE)
+        return m_estate.z;
+        
+      throw std::runtime_error(DTR("Invalid Z unit"));
       return 0;
     }
 

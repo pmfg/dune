@@ -1,5 +1,5 @@
 //***************************************************************************
-// Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+// Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 // Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 //***************************************************************************
 // This file is part of DUNE: Unified Navigation Environment.               *
@@ -86,7 +86,7 @@ namespace Transports
       // Software meta information.
       std::string m_meta;
       // Table of messages.
-      std::map<unsigned, DUNE::IMC::Message*> m_msgs;
+      std::map<uint64_t, DUNE::IMC::Message*> m_msgs;
       // Entity map.
       EntityMap m_entities;
       // Concurrency mutex.
