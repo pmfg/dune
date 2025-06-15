@@ -215,29 +215,34 @@ namespace Monitors
       getCpuSpeed()
       {
         std::string output = "";
-        // Open a pipe to execute the command and read its output
-        FILE *pipe = popen("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq", "r");
+        // Open a pipe to execute the command and read its output for all CPUs
+        FILE *pipe = popen("cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq", "r");
         if (!pipe)
         {
           war("Error executing command to read frequency.");
           return output;
         }
-
         char buffer[1024];
         // Read the output of the command line by line
-        while (!feof(pipe))
+        while (fgets(buffer, sizeof(buffer), pipe) != NULL)
         {
-          if (fgets(buffer, 1024, pipe) != NULL)
-          {
-            // Convert MHz value to double
-            double mhz = std::atof(buffer) / 1024.0;
-            // Append MHz value to the output string
-            output += "| " + std::to_string((int)mhz) + " MHz ";
-          }
+          // Convert the frequency value to double
+          double freq = std::atof(buffer);
+          // Append MHz value to the output string
+          output += "| " + std::to_string((int)(freq / 1000)) + " MHz ";
         }
-
         // Close the pipe
         pclose(pipe);
+        if (output.empty())
+        {
+          war("Error reading CPU frequency. No output received.");
+          return "No CPU frequency data available.";
+        }
+        // Remove trailing space
+        if (!output.empty() && output.back() == ' ')
+        {
+          output.pop_back();
+        }
         return output;
       }
 
