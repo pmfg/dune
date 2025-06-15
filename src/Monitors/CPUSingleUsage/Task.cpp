@@ -44,7 +44,7 @@ namespace Monitors
     using DUNE_NAMESPACES;
 
     static const float c_time_between_reads = 2.0f;
-    static const int c_max_cpu = 4;
+    static const int c_max_cpu = 32;
 
     typedef struct CPUData
     {
@@ -76,6 +76,8 @@ namespace Monitors
       Time::Counter<float> m_cpu_check;
       //! Read timestamp.
       double m_tstamp;
+      //! Number of CPUs
+      int m_num_cpus;
       //! Constructor.
       //! @param[in] name task name.
       //! @param[in] ctx context.
@@ -83,13 +85,14 @@ namespace Monitors
         DUNE::Tasks::Task(name, ctx),
         m_tstamp(0)
       {
+        m_num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
       }
 
       //! Reserve entity identifiers.
       void
       onEntityReservation(void)
       {
-        for(uint8_t i = 1 ; i <= c_max_cpu; i++)
+        for(uint8_t i = 1 ; i <= m_num_cpus; i++)
         {
           std::string cpu_label = String::str("CPU%u", i);
           m_cpu_eid[i - 1] = getEid(cpu_label);
@@ -125,7 +128,9 @@ namespace Monitors
       void
       onResourceInitialization(void)
       {
-        setEntityState(IMC::EntityState::ESTA_NORMAL, Status::CODE_ACTIVE);
+        char m_buffer_entity[512];
+        std::sprintf(m_buffer_entity, "active | Cores Detected: %d", m_num_cpus);
+        setEntityState(IMC::EntityState::ESTA_NORMAL, Utils::String::str(DTR(m_buffer_entity)));
         m_cpu_check.setTop(c_time_between_reads);
       }
 
@@ -166,7 +171,7 @@ namespace Monitors
               entry.cpu = STR_TOT;
 
             // read times
-            for (int i = 0; i < c_max_cpu; ++i)
+            for (int i = 0; i < m_num_cpus; ++i)
               ss >> entry.times[i];
           }
         }
@@ -195,7 +200,7 @@ namespace Monitors
       dispatchStatus(const std::vector<CPUData> &entries1, const std::vector<CPUData> &entries2)
       {
         const size_t NUM_ENTRIES = entries1.size();
-        uint8_t cpu_usage[c_max_cpu];
+        std::vector<uint8_t> cpu_usage(m_num_cpus);
         for (size_t i = 1; i < NUM_ENTRIES; ++i)
         {
           const CPUData &e1 = entries1[i];
@@ -205,14 +210,62 @@ namespace Monitors
           const float TOTAL_TIME = ACTIVE_TIME + IDLE_TIME;
           cpu_usage[i-1] = (100.f * ACTIVE_TIME / TOTAL_TIME);
         }
-        debug("CPU0: %03d%% | CPU1: %03d%% | CPU2: %03d%% | CPU3: %03d%%", cpu_usage[0], cpu_usage[1], cpu_usage[2], cpu_usage[3]);
-
-        for(uint8_t id = 0; id < c_max_cpu; id++)
+        for(uint8_t id = 0; id < m_num_cpus; id++)
         {
           m_cpu[id].setTimeStamp(m_tstamp);
           m_cpu[id].value = cpu_usage[id];
+          debug("CPU%u: %d%%", id + 1, cpu_usage[id]);
           dispatch(m_cpu[id], DF_KEEP_TIME | DF_LOOP_BACK);
         }
+      }
+
+      double
+      getSingleCoreUsage(void)
+      {
+        char buffer[128];
+        FILE *fp;
+        unsigned long long user1, nice1, system1, idle1;
+        unsigned long long user2, nice2, system2, idle2;
+
+        // First snapshot
+        fp = popen("grep 'cpu ' /proc/stat", "r");
+        if (fp == NULL)
+        {
+          trace("Fail to execute command");
+          return 0;
+        }
+        if (fgets(buffer, sizeof(buffer) - 1, fp) == NULL)
+        {
+          trace("Fail to read buffer");
+          pclose(fp);
+          return 0;
+        }
+        sscanf(buffer, "cpu %llu %llu %llu %llu", &user1, &nice1, &system1, &idle1);
+        pclose(fp);
+
+        Delay::waitMsec(1000);
+
+        // Second snapshot
+        fp = popen("grep 'cpu ' /proc/stat", "r");
+        if (fp == NULL)
+        {
+          trace("Fail to execute command");
+          return 0;
+        }
+        if (fgets(buffer, sizeof(buffer) - 1, fp) == NULL)
+        {
+          trace("Fail to read buffer");
+          pclose(fp);
+          return 0;
+        }
+        sscanf(buffer, "cpu %llu %llu %llu %llu", &user2, &nice2, &system2, &idle2);
+        pclose(fp);
+
+        unsigned long long total1 = user1 + nice1 + system1 + idle1;
+        unsigned long long total2 = user2 + nice2 + system2 + idle2;
+        unsigned long long idle_diff = idle2 - idle1;
+        unsigned long long total_diff = total2 - total1;
+        return 100.0 * (total_diff - idle_diff) / total_diff;
       }
 
       //! Main loop.
@@ -225,13 +278,24 @@ namespace Monitors
           if (m_cpu_check.overflow())
           {
             m_cpu_check.reset();
-            std::vector<CPUData> entries1;
-	          std::vector<CPUData> entries2;
             m_tstamp = Clock::getSinceEpoch();
-            readStatsCPU(entries1);
-            Delay::waitMsec(100);
-            readStatsCPU(entries2);
-            dispatchStatus(entries1, entries2);
+            if(m_num_cpus > 1)
+            {
+              std::vector<CPUData> entries1;
+              std::vector<CPUData> entries2;
+              readStatsCPU(entries1);
+              Delay::waitMsec(100);
+              readStatsCPU(entries2);
+              dispatchStatus(entries1, entries2);
+            }
+            else
+            {
+              m_cpu[0].setTimeStamp(m_tstamp);
+              uint8_t usage = (uint8_t) getSingleCoreUsage();
+              m_cpu[0].value = usage;
+              debug("CPU0: %d%%", usage);
+              dispatch(m_cpu[0], DF_KEEP_TIME | DF_LOOP_BACK);
+            }
           }
         }
       }

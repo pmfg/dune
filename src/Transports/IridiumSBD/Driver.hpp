@@ -67,6 +67,7 @@ namespace Transports
         m_use_9523 = use_9523N;
         m_wait_boot = wait_boot;
         setLineTrim(true);
+        m_rssi_wdog.setTop(45.0);
       }
 
       //! Destructor.
@@ -131,7 +132,10 @@ namespace Transports
           {
             readRaw(timer, data, length);
             data[length] = '\0';
-            getTask()->debug("data: %s", data);
+            //print the hexadecimal data
+            for(unsigned i = 0; i < length; i++)
+              getTask()->debug("data[%u]: %02x", i, data[i]);
+
             computeChecksum(data, length, ccsum);
             getTask()->debug("ccsum: %02x %02x", ccsum[0], ccsum[1]);
           }
@@ -290,6 +294,8 @@ namespace Transports
       uint16_t m_length_msg_9523;
       //! Delay of boot up of lidb board.
       double m_wait_boot;
+      //! Query RSSI watchdog.
+      Counter<double> m_rssi_wdog;
 
       //! Perform ISU initialization, this function must be called
       //! before any other.
@@ -353,6 +359,8 @@ namespace Transports
         {
           if (ind == 0)
             setRSSI(value * 20);
+
+          m_rssi_wdog.reset();
         }
         else
         {
@@ -488,6 +496,9 @@ namespace Transports
         uint8_t csum[2] = {0};
         computeChecksum(data, data_size, csum);
         sendRaw(csum, sizeof(csum));
+        
+        if (m_use_9523)
+          sendRaw((uint8_t*)getLineTermOut().c_str(), getLineTermOut().size());
 
         // Read response.
         std::string line = readLine();
@@ -503,12 +514,14 @@ namespace Transports
       //! This function guarantees that unsolicited messages
       //! are properly handled and the length is read correctly.
       unsigned
-      getBufferSizeMT(Counter<double>& timer)
+      getBufferSizeMT(Counter<double>& timer, bool unsolicited = false)
       {
         uint8_t bfr[2] = {0};
 
         // Read first byte.
         readRaw(timer, bfr, 1);
+        //print the first byte
+        getTask()->debug("bfr[0]: %02x", bfr[0]);
 
         // Handle start of unsolicited messages and ring alerts.
         if (bfr[0] == '+' || bfr[0] == 'S')
@@ -521,14 +534,14 @@ namespace Transports
             if (bfr[0] == '\n')
             {
               handleUnsolicited(String::trim(line));
-              return getBufferSizeMT(timer);
+              return getBufferSizeMT(timer, true);
             }
           }
 
           throw ReadTimeout();
         }
         // Handle padding of an unsolicited message
-        else if ((bfr[0] == '\r') || (bfr[0] == '\n'))
+        else if (((bfr[0] == '\r') || (bfr[0] == '\n')) && unsolicited)
         {
           return getBufferSizeMT(timer);
         }
@@ -542,7 +555,7 @@ namespace Transports
         {
           if(m_length_msg_9523 <= 255)
           {
-            getTask()->debug("size <255: %d ! %d", m_length_msg_9523, bfr[0]);
+            getTask()->debug("size <255: %d ! %d ! %02x", m_length_msg_9523, bfr[0], bfr[0]);
           }
           else
           {
@@ -557,6 +570,27 @@ namespace Transports
           readRaw(timer, bfr + 1, 1);
           return (bfr[0] << 8) | bfr[1];
         }
+      }
+    protected:
+      void
+      queryRSSI(void) override
+      {
+        if (!m_rssi_wdog.overflow())
+          return;
+
+        sendAT("+CSQ");
+
+        // Needs a timeout bigger than the default 5 seconds.
+        Counter<double> timer(7.0);
+        std::string val = readLine(timer);
+        expectOK();
+
+        unsigned rssi = 0;
+        if (std::sscanf(val.c_str(), "+CSQ:%u", &rssi) != 1)
+          throw DUNE::Hardware::InvalidFormat(val);
+
+        m_rssi_wdog.reset();
+        setRSSI(rssi * 20);
       }
     };
   }

@@ -265,6 +265,9 @@ namespace Supervisors
         err("%s", m_vs.last_error.c_str());
 
         stopManeuver(true);
+
+        IMC::Aborted aborted;
+        dispatch(aborted);
       }
 
       void
