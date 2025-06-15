@@ -1,5 +1,5 @@
 /***************************************************************************
-* Copyright 2007-2023 Universidade do Porto - Faculdade de Engenharia      *
+* Copyright 2007-2025 Universidade do Porto - Faculdade de Engenharia      *
 * Laboratório de Sistemas e Tecnologia Subaquática (LSTS)                  *
 ****************************************************************************
 * This file is part of DUNE: Unified Navigation Environment.               *
@@ -211,6 +211,10 @@ div#Sensors {
 #ConnectionIcon
 {
   border: none;
+  width: 34px;
+  height: 34px;
+  background-size: contain;
+  background-repeat: no-repeat;
 }
 
 div.Hidden
@@ -299,9 +303,9 @@ p.DEBUG
   margin-right: auto;
   width: 80%;
   text-align: center;
-  padding: 10px 18px;
-  border-radius: 18px;
-  box-shadow: 0 1px 2px var(--c-color-text);
+  /*padding: 10px 18px;*/
+  /*border-radius: 18px;*/
+  /*box-shadow: 0 1px 2px var(--c-color-text);*/
 }
 
 #MainOverviewRight
@@ -310,9 +314,9 @@ p.DEBUG
   margin-right: 80px;
   width: 20%;
   text-align: center;
-  padding: 10px 18px;
-  border-radius: 18px;
-  box-shadow: 0 1px 2px var(--c-color-text);
+  /*padding: 10px 18px;*/
+  /*border-radius: 18px;*/
+  /*box-shadow: 0 1px 2px var(--c-color-text);*/
 }
 
 #MenuBar
@@ -625,4 +629,218 @@ label:hover .custom-checkbox {
   left: 0.75rem;
   font-size: 0.25rem;
   color: #6200ea;
+}
+
+.announces-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background-color: var(--c-background-h-l);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  max-height: 80vh;
+}
+
+.announce-section {
+  background-color: var(--c-background);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.announce-title-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 10px;
+  border-bottom: 1px solid var(--c-color-border);
+  transition: background-color 0.3s ease;
+}
+
+.announce-title-container:hover {
+  background-color: var(--c-color-hover);
+}
+
+.announce-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.announce-arrow {
+  font-size: 18px;
+  color: var(--c-color-text-secondary);
+  transition: transform 0.3s ease;
+}
+
+.announce-section.open .announce-arrow {
+  transform: rotate(180deg);
+}
+
+.announce-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Define 2 columns */
+  gap: 12px; /* Add spacing between items */
+  padding: 0;
+  margin: 16px 0 0; /* Add spacing at the top of the list */
+}
+
+.announce-item {
+  display: flex;
+  flex-direction: column; /* Stack protocol, IP, and port */
+  padding: 8px;
+  /*background-color: var(--c-color-disabled);*/
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: justify; /* Justify the text */
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.announce-item:hover {
+  transform: translateY(-4px); /* Add a hover effect to "lift" the card */
+  box-shadow: 0 4px 8px rgba(125, 125, 245, 0.562);
+}
+
+/* Style for collapsed sections */
+.announce-section .announce-list {
+  display: none; /* Hide the list when the section is collapsed */
+}
+
+.announce-section.open .announce-list {
+  display: block; /* Show the list when the section is open */
+}
+
+/* Tooltip (popup) style */
+.announce-tooltip {
+  display: none;  /* Hidden by default */
+  position: absolute;
+  background-color: var(--c-color-text);
+  color: var(--c-background);
+  padding: 5px;
+  border-radius: 4px;
+  font-size: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+/* Position the tooltip relative to the section title */
+.announce-title:hover + .announce-tooltip {
+  display: block; /* Show tooltip on hover */
+}
+
+/* Apply color to links in announce items */
+.announce-item a {
+  color: #4fa3f7;  /* Set link color */
+  text-decoration: underline;   /* Underline links */
+}
+
+/* Hover effect for links */
+.announce-item a:hover {
+  color: #ffcc00;  /* Set hover color */
+  background-color: #e3f2fd;  /* Background color on hover */
+}
+
+.announce-item span {
+  display: block; /* Ensure each part is on its own line */
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.announce-item .protocol {
+  color: var(--c-color-info);
+  font-weight: bold;
+}
+
+.announce-item .ip {
+  font-size: 13px;
+  color: var(--c-color-secondary-text);
+}
+
+.announce-item .port {
+  font-size: 12px;
+  color: var(--c-color-disabled);
+}
+
+/* Add a hover effect to clickable items */
+.announce-item:hover span.protocol {
+  color: #2196f3;
+  text-decoration: underline;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 600px) {
+  .announce-list {
+    grid-template-columns: 1fr; /* Single column on small screens */
+  }
+}
+
+.cpu-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  margin-right: 4px;
+  background-image: var(--cpu-icon-url);
+}
+
+#MainTaskTable tr[data-state="0"] td,
+#MainTaskTable tr[data-state="0"] th {
+  /*background-color: var(--c-color-warning);*/
+  border-radius: 18px;
+}
+
+#MainTaskTable tr[data-state="2"] td,
+#MainTaskTable tr[data-state="2"] th,
+#MainTaskTable tr[data-state="3"] td,
+#MainTaskTable tr[data-state="3"] th,
+#MainTaskTable tr[data-state="4"] td,
+#MainTaskTable tr[data-state="4"] th {
+  /*background-color: var(--c-color-error);*/
+  border-radius: 18px;
+}
+
+#MainTaskTable th.rounded-corner {
+  background-color: var(--c-background);
+  border-radius: 18px;
+}
+
+#MainTaskTable tr[data-state="0"] th.rounded-corner {
+  background-color: var(--c-color-warning);
+  border-radius: 18px;
+}
+
+#MainTaskTable tr[data-state="2"] th.rounded-corner,
+#MainTaskTable tr[data-state="3"] th.rounded-corner,
+#MainTaskTable tr[data-state="4"] th.rounded-corner {
+  background-color: var(--c-color-error_2);
+  border-radius: 18px;
+}
+
+.gauge-container {
+  position: relative;
+  width: 200px;
+  height: 18px;
+  background-color: var(--c-background-h-l);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.gauge-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 6px;
+  transition: width 0.5s ease;
+}
+
+.gauge-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #000000;
+  font-size: 12px;
 }

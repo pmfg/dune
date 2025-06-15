@@ -89,6 +89,14 @@ Main.prototype.m_fields = [
     "side": "left"
   },
   {
+    "label": "Iridium RSSI:",
+    "data_function": function (data) { return getMessageValueFilter(data, 'RSSI', 'Iridium Modem',0); },
+    "widget": new Gauge({
+      reverse: false
+    }),
+    "side": "left"
+  },
+  {
     "label": "DUNE CPU Usage:",
     "data_function": function (data) { return getMessageCpuSingleUsage(data, 'DUNE-CPU', 0); },
     "widget": new Gauge({
@@ -114,6 +122,14 @@ Main.prototype.m_fields = [
       return cpuValues;
     },
     "widget": new ChartWidget(),
+    "side": "right"
+  },
+  {
+    "label": "GSM RSSI:",
+    "data_function": function (data) { return getMessageValueFilter(data, 'RSSI', 'SMS',0); },
+    "widget": new Gauge({
+      reverse: false
+    }),
     "side": "right"
   }
 ];
@@ -449,6 +465,23 @@ function getMessageValue(data, abbrev, defval) {
   }
 };
 
+function getMessageValueFilter(data, abbrev, task_name, defval) {
+  try {
+    for (m in data.dune_messages) {
+      var msg = data.dune_messages[m];
+      var src_ent = data.dune_entities[msg.src_ent].label;
+      if (msg.abbrev == abbrev && src_ent == task_name) {
+        //console.log(">>>> A >>> " + msg.src_ent + " : " + msg.value + " : " + src_ent);
+        return msg.value;
+      }
+    }
+    return defval;
+  }
+  catch (err) {
+    return defval;
+  }
+}
+
 function getMessageCpuSingleUsage(data, ent, defval) {
   try {
     for (m in data.dune_entities) {
@@ -474,11 +507,32 @@ function getSystemInfo(data) {
       if (data.dune_messages[i].abbrev == 'Announce' && data.dune_messages[i].sys_name == data.dune_system) {
         var msg = data.dune_messages[i];
         var systemType = getSystemType(data, msg.sys_type);
+        document.title = msg.sys_name + ' (' + getSystemTypeString(msg.sys_type) + ')';
         return msg.sys_name + ' (' + systemType + ')';
       }
     }
   }
   return 'Unknown';
+}
+
+function getSystemTypeString(value) {
+  var abbreviationMap = {
+    0: "CCU",
+    1: "Human-portable Sensor",
+    2: "UUV",
+    3: "USV",
+    4: "UAV",
+    5: "UGV",
+    6: "Static sensor",
+    7: "Mobile sensor",
+    8: "Wireless Sensor Network"
+  };
+
+  if (value in abbreviationMap) {
+    return abbreviationMap[value];
+  } else {
+    return "Unknown";
+  }
 }
 
 function getSystemType(data, value) {
