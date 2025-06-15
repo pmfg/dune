@@ -256,7 +256,8 @@ Main.prototype.update = function () {
       var msg = g_data.dune_messages[i];
       if (msg.abbrev == 'EntityInfo') {
         var name = g_data.dune_entities[msg.src_ent].label;
-        if (name == 'GPS') {
+        //normal is task name GPS, for 4wd is AUXBoard
+        if (name == 'AUXBoard') {
           GPS_srcEntity_id = msg.src_ent;
         }
       }
