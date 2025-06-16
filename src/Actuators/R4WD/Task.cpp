@@ -76,8 +76,8 @@ namespace Actuators
       std::string motor_elabels[c_max_motors];
       //! Distance to stop motors
       float distance_stop;
-      //! Get Lidar Distance
-      bool get_lidar;
+      //! Use Lidar Distance
+      bool use_lidar;
     };
 
     struct Task: public DUNE::Tasks::Task
@@ -189,9 +189,9 @@ namespace Actuators
           .defaultValue("0.15")
           .description("Distance to Stop Motors in meters.");
 
-        param("Get Data Lidar", m_args.get_lidar)
+        param("Use Data Lidar to Stop", m_args.use_lidar)
           .defaultValue("false")
-          .description("Get Data Lidar.");
+          .description("Use Data Lidar to Stop.");
 
         bind<IMC::SetThrusterActuation>(this);
         bind<IMC::VehicleState>(this);
@@ -360,12 +360,19 @@ namespace Actuators
       consume(const IMC::SetThrusterActuation* msg)
       {
         debug("ID:%d | %f", msg->id, msg->value);
-        if(msg->value > 0 && m_args.distance_stop > 0)
+        if(m_args.use_lidar)
         {
-          if(m_args.distance_stop >= m_aux->getDistanceLidar())
+          if(msg->value > 0 && m_args.distance_stop > 0)
           {
-            war("Stoping Motor %d, object to close ( < %.2f m)", msg->id, m_args.distance_stop);
-            m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, 0);
+            if(m_args.distance_stop >= m_aux->getDistanceLidar())
+            {
+              war("Stoping Motor %d, object to close ( < %.2f m)", msg->id, m_args.distance_stop);
+              m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, 0);
+            }
+            else
+            {
+              m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
+            }
           }
           else
           {
@@ -383,11 +390,10 @@ namespace Actuators
       dispatchBMPData(void)
       {
         m_pressure.value = m_aux->getPressureBMP();
-        m_temperature.value = m_aux->getLocalTemperatureBMP();
         dispatch(m_pressure);
+        m_temperature.value = m_aux->getLocalTemperatureBMP();
         dispatch(m_temperature);
 
-        
         m_altitude[0].value = m_aux->getAltitudeBMP();
         m_altitude[0].validity = IMC::Distance::DV_VALID;
         dispatch(m_altitude[0]);
@@ -397,7 +403,6 @@ namespace Actuators
         dispatch(m_altitude[1]);
 
         // war("Pressure: %.2f Pa | Temperature: %.2f C", m_pressure.value, m_temperature.value);
-        
       }
 
       void
