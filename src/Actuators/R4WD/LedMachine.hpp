@@ -33,7 +33,7 @@
 // DUNE headers.
 #include <DUNE/DUNE.hpp>
 
-#include "boardDriver.hpp"
+#include "AUXDriver.hpp"
 
 namespace Actuators
 {

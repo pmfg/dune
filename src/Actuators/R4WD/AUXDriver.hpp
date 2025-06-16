@@ -34,7 +34,7 @@
 #include <DUNE/DUNE.hpp>
 
 // Local headers
-#include "auxCommands.hpp"
+#include "AuxCommands.hpp"
 
 namespace Actuators
 {
@@ -215,6 +215,10 @@ namespace Actuators
               vrs = std::strtok(NULL, ",");
               m_task->inf("Firmware version: %s", vrs);
               m_get_firmware_version = true;
+              IMC::VersionInfo vi;
+              vi.version = vrs;
+              vi.op = IMC::VersionInfo::OP_REPLY;
+              m_task->dispatch(vi);
             }
             else if (std::strstr(bfrUart, "$,i,E,") != NULL)
             {
@@ -413,13 +417,15 @@ namespace Actuators
 
         m_new_all_data = true;
 
-        m_task->debug("Channel 1: %.3fV | %.3fA", m_ina_data[0].voltage, m_ina_data[0].current);
-        m_task->debug("Channel 2: %.3fV | %.3fA", m_ina_data[1].voltage, m_ina_data[1].current);
-        m_task->debug("Channel 3: %.3fV | %.3fA", m_ina_data[2].voltage, m_ina_data[2].current);
-        m_task->debug("%04d-%02d-%02d | %02d:%02d:%02d", gps.year, gps.month, gps.day, gps.hour, gps.minute, gps.second);
-        m_task->debug("Valid fix: %s | Sat: %d | Hdop: %.2f", gps.valid_fix ? "true" : "false", gps.sat, gps.hdop);
-        m_task->debug("Speed: %.2f m/s | Course: %.2f º | Altitude: %.2f m", gps.speed, gps.course, gps.altitude);
-        m_task->debug("Latitude: %f | Longitude: %f", gps.latitude, gps.longitude);
+        m_task->trace("Channel 1: %.3fV | %.3fA", m_ina_data[0].voltage, m_ina_data[0].current);
+        m_task->trace("Channel 2: %.3fV | %.3fA", m_ina_data[1].voltage, m_ina_data[1].current);
+        m_task->trace("Channel 3: %.3fV | %.3fA", m_ina_data[2].voltage, m_ina_data[2].current);
+        m_task->trace("%04d-%02d-%02d | %02d:%02d:%02d", gps.year, gps.month, gps.day, gps.hour, gps.minute, gps.second);
+        m_task->trace("Valid fix: %s | Sat: %d | Hdop: %.2f", gps.valid_fix ? "true" : "false", gps.sat, gps.hdop);
+        m_task->trace("Speed: %.2f m/s | Course: %.2f º | Altitude: %.2f m", gps.speed, gps.course, gps.altitude);
+        m_task->trace("Latitude: %f | Longitude: %f", gps.latitude, gps.longitude);
+        m_task->trace("Local Temperature: %.2f ºC | Pressure: %.2f hPa | Altitude: %.2f m", m_local_temp, m_pressure, m_altitude);
+        m_task->trace("Heading: %d | Lidar Distance: %d", m_heading, m_lidar_dist);
       }
     };
   }

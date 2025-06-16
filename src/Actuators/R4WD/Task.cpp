@@ -36,8 +36,8 @@
 #include <DUNE/DUNE.hpp>
 
 // Local headers
-#include "boardDriver.hpp"
-#include "auxCommands.hpp"
+#include "AUXDriver.hpp"
+#include "AuxCommands.hpp"
 #include "LedMachine.hpp"
 
 namespace Actuators
@@ -118,12 +118,14 @@ namespace Actuators
       IMC::Rpm m_rpm[c_max_motors];
       //! Power operation.
       IMC::PowerOperation m_pwr_op;
+      //! Flag to control gps fix state
+      bool m_fix_ok;
+      //!  Altitude messages
+      IMC::Distance m_altitude[2];
       //! BMP Pressure
       IMC::Pressure m_pressure;
       //! BMP Temperature
       IMC::Temperature m_temperature;
-      //! Flag to control gps fix state
-      bool m_fix_ok;
 
       Task(const std::string& name, Tasks::Context& ctx):
         Tasks::Task(name, ctx),
@@ -231,6 +233,11 @@ namespace Actuators
           }
           m_rpm[i].setSourceEntity(eid);
         }
+
+        m_altitude[0].setSourceEntity(getEid("Altitude BMP"));
+        m_altitude[1].setSourceEntity(getEid("Distance Lidar"));
+        m_pressure.setSourceEntity(getEid("Pressure BMP"));
+        m_temperature.setSourceEntity(getEid("Temperature BMP"));
       }
 
       unsigned
@@ -379,6 +386,18 @@ namespace Actuators
         m_temperature.value = m_aux->getLocalTemperatureBMP();
         dispatch(m_pressure);
         dispatch(m_temperature);
+
+        
+        m_altitude[0].value = m_aux->getAltitudeBMP();
+        m_altitude[0].validity = IMC::Distance::DV_VALID;
+        dispatch(m_altitude[0]);
+
+        m_altitude[1].value = m_aux->getDistanceLidar();
+        m_altitude[1].validity = IMC::Distance::DV_VALID;
+        dispatch(m_altitude[1]);
+
+        // war("Pressure: %.2f Pa | Temperature: %.2f C", m_pressure.value, m_temperature.value);
+        
       }
 
       void
@@ -387,6 +406,13 @@ namespace Actuators
         //TODO
         int heading = m_aux->getHeading();
         //war("heading : %d", heading);
+        IMC::EulerAngles euler;
+        euler.setTimeStamp();
+        euler.psi = Angles::radians(heading);
+        euler.psi_magnetic = Angles::radians(heading);
+        euler.phi = 0.0;
+        euler.theta = 0.0;
+        dispatch(euler, DF_KEEP_TIME);
       }
 
       void
@@ -440,6 +466,10 @@ namespace Actuators
         //dst = (h * 3600) + (m * 60) + s + sfp;
         struct R4WD::AUXDriver::GPSData m_gps_data;
         m_gps_data = m_aux->getGPSData();
+        // war("GPS Data: %d | %f | %f | %f | %f | %f | %f | %d | %d",
+        //     m_gps_data.valid_fix, m_gps_data.latitude, m_gps_data.longitude,
+        //     m_gps_data.hdop, m_gps_data.course, m_gps_data.altitude,
+        //     m_gps_data.speed, m_gps_data.sat, m_gps_data.year);
         if(m_gps_data.valid_fix)
         {
           m_fix_ok = true;
