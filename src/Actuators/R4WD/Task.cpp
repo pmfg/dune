@@ -49,7 +49,7 @@ namespace Actuators
     static const uint8_t c_max_channels = 3;
     static const int c_max_data_type_to_ask = 3;
     static const float c_period_data_get = 1.0 / c_max_data_type_to_ask;
-    static const int c_max_motors = 2;
+    static const int c_max_motors = 1;
     static const int c_max_led = 2;
 
     struct Arguments
@@ -78,6 +78,8 @@ namespace Actuators
       float distance_stop;
       //! Use Lidar Distance
       bool use_lidar;
+      //! Flag to control binary dir control
+      bool binary_dir_control;
     };
 
     struct Task: public DUNE::Tasks::Task
@@ -193,7 +195,12 @@ namespace Actuators
           .defaultValue("false")
           .description("Use Data Lidar to Stop.");
 
+        param("Binary Direction Control", m_args.binary_dir_control)
+          .defaultValue("false")
+          .description("Control direction of motor with binary values -1,0,1.");
+
         bind<IMC::SetThrusterActuation>(this);
+        bind<IMC::SetServoPosition>(this);
         bind<IMC::VehicleState>(this);
         bind<IMC::EntityState>(this);
         bind<IMC::GpsFix>(this);
@@ -359,31 +366,57 @@ namespace Actuators
       void
       consume(const IMC::SetThrusterActuation* msg)
       {
-        debug("ID:%d | %f", msg->id, msg->value);
-        if(m_args.use_lidar)
+        trace("SetThrusterActuation:ID:%d | %f", msg->id, msg->value);
+        if(msg->id == 0)
         {
-          if(msg->value > 0 && m_args.distance_stop > 0)
+          if(m_args.use_lidar)
           {
-            if(m_args.distance_stop >= m_aux->getDistanceLidar())
+            if(m_args.distance_stop > 0)
             {
-              war("Stoping Motor %d, object to close ( < %.2f m)", msg->id, m_args.distance_stop);
-              m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, 0);
+              if(m_args.distance_stop >= m_aux->getDistanceLidar())
+              {
+                war("Stoping Motor %d, object to close ( < %.2f m)", msg->id, m_args.distance_stop);
+                m_rpm[msg->id].value = m_aux->setSpeed(0);
+              }
+              else
+              {
+                m_rpm[msg->id].value = m_aux->setSpeed(msg->value);
+              }
             }
             else
             {
-              m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
+             m_rpm[msg->id].value = m_aux->setSpeed(msg->value);
             }
           }
           else
           {
-            m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
+            m_rpm[msg->id].value = m_aux->setSpeed(msg->value);
+          }
+          dispatch(m_rpm[msg->id]);
+        }
+      }
+
+      //! Consume message IMC::SetServoPosition
+      void
+      consume(const IMC::SetServoPosition* msg)
+      {
+        trace("SetServoPosition:ID:%d | %f", msg->id, msg->value);
+        if(msg->id == 0)
+        {
+          if(m_args.binary_dir_control)
+          {
+            if(msg->value < 0)
+              m_aux->setDirection(1);
+            else if(msg->value > 0)
+              m_aux->setDirection(-1);
+            else
+              m_aux->setDirection(0);
+          }
+          else
+          {
+            m_aux->setDirection(-1 * msg->value);
           }
         }
-        else
-        {
-          m_rpm[msg->id].value = m_aux->sendSpeedMotor(msg->id, msg->value);
-        }
-        dispatch(m_rpm[msg->id]);
       }
 
       void
@@ -585,7 +618,7 @@ namespace Actuators
               onResourceRelease();
               m_led->turnLedOn(AUXDriver::LED_RED);
               Time::Delay::wait(2);
-              if (std::system("poweroff") == -1)
+              if (std::system("systemctl --no-wall poweroff") == -1)
               {
                 setEntityState(IMC::EntityState::ESTA_ERROR, Status::CODE_INTERNAL_ERROR);
                 err(DTR("failed to execute poweroff command"));

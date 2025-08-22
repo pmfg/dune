@@ -65,6 +65,12 @@ namespace Actuators
         int valid_fix;
       };
 
+      struct DirectionSpeed
+      {
+        float direction;
+        float speed;
+      };
+
       enum LEDId
       {
         LED_RED = 0,
@@ -84,8 +90,6 @@ namespace Actuators
         m_baud = baud_uart;
         m_new_all_data = false;
         m_first_read = true;
-        m_speed.motor_1 = 0;
-        m_speed.motor_2 = 1;
         m_pressure = 0;
         m_altitude = 0;
         m_local_temp = 0;
@@ -93,6 +97,8 @@ namespace Actuators
         m_get_firmware_version = false;
         m_heading = 0;
         m_lidar_dist = 0;
+        m_dir_speed.direction = 0;
+        m_dir_speed.speed = 0;
         try
         {
           m_uart = new SerialPort(m_device, m_baud);
@@ -246,22 +252,49 @@ namespace Actuators
         return gps;
       }
 
-      int
-      sendSpeedMotor(uint8_t motor_id, float value_speed)
+      void
+      setDirection(float direction)
       {
-        if(motor_id == 0)
-        {
-          m_speed.motor_1 = value_speed * 100;
-        }
-        else if(motor_id == 1)
-        {
-          m_speed.motor_2 = value_speed * 100;
-        }
-        char cmd[64];
-        std::sprintf(cmd, "%c,%c,%d,%d%c", BYTE_PREAMBLE, BYTE_SET_SPEED, m_speed.motor_1, m_speed.motor_2, '\0');
-        m_uart->writeString(buildCmdMsg(cmd).c_str());
+        m_dir_speed.direction = direction;
+        sendDirAndSpeed(m_dir_speed.direction, m_dir_speed.speed);
+      }
 
-        return value_speed * 100;
+      int
+      setSpeed(float speed)
+      {
+        m_dir_speed.speed = speed;
+        sendDirAndSpeed(m_dir_speed.direction, m_dir_speed.speed);
+        return static_cast<int>(speed * 100);
+      }
+
+      void
+      sendDirAndSpeed(float dir, float value_speed)
+      {
+        if (dir < -1 || dir > 1)
+        {
+          m_task->war("Direction must be between -1 and 1");
+          return;
+        }
+        if (value_speed < -1 || value_speed > 1)
+        {
+          m_task->war("Speed must be between -1 and 1");
+          return;
+        }
+
+        // dir input is from -0.78 to 0.78, need to convert to -255 to 255
+        // Adjust conversion based on actual range of dir
+        float dir_min = -0.78f;
+        float dir_max = 0.78f;
+        int final_dir = static_cast<int>((dir - dir_min) / (dir_max - dir_min) * 510
+                                         - 255);  // Converting from -0.78..0.78 to -255..255
+
+        // speed input is from -1 to 1, need to convert to -255 to 255
+        int final_speed = static_cast<int>(value_speed * 255);
+        m_task->err("Direction: %d | Speed: %d", final_dir, final_speed);
+
+        char cmd[64];
+        std::sprintf(cmd, "%c,%c,%d,%d%c", BYTE_PREAMBLE, BYTE_SET_SPEED, final_dir, final_speed, '\0');
+        m_uart->writeString(buildCmdMsg(cmd).c_str());
       }
 
       float
@@ -309,12 +342,6 @@ namespace Actuators
         float current;
       };
 
-      struct MotorSpeed
-      {
-        int motor_1;
-        int motor_2;
-      };
-
       //! Parent task.
       DUNE::Tasks::Task *m_task;
       //! Serial Object
@@ -333,8 +360,6 @@ namespace Actuators
       bool m_new_gps_data;
       //! First read of imu values
       bool m_first_read;
-      //! Struct to save motor speeds in percentage.
-      MotorSpeed m_speed;
       //! Switch State
       bool m_is_switch_on;
       //! Pressure
@@ -351,6 +376,8 @@ namespace Actuators
       int m_heading;
       //! Distance from Lidar
       int m_lidar_dist;
+      //! Current direction and speed
+      DirectionSpeed m_dir_speed;
 
       char
       calcCRC8(char *data_in)
