@@ -259,6 +259,7 @@ namespace Autonomy
       void
       consume(const IMC::PlanControlState* msg)
       {
+        Memory::replace(m_pcs, msg->clone());
         m_emsg->update(msg);
       }
 
@@ -504,15 +505,15 @@ namespace Autonomy
         std::string recipients = m_ctx.config.get(c_sms_section, c_sms_field);
         recipients += "," + newNum;
 
-        IMC::EntityParameter parmeter;
-        parmeter.name = "SMS Recipient Number";
-        parmeter.value = recipients;
+        IMC::EntityParameter parameter;
+        parameter.name = "SMS Recipient Number";
+        parameter.value = recipients;
         IMC::SetEntityParameters params;
         params.name = "Emergency Monitor";
-        params.params.push_back(parmeter);
-        dispatch(params, DF_LOOP_BACK);
+        params.params.push_back(parameter);
+        dispatch(params);
         ss << "Added emergency number " << newNum << "to recipients list.";
-        reply(origin,ss.str());
+        reply(origin, ss.str());
       }
 
       //! Execute command 'INFO'
@@ -682,7 +683,7 @@ namespace Autonomy
       void
       handlePosCommand(const std::string& origin)
       {
-        std::string s = m_emsg->get();
+        std::string s = m_emsg->get("T");
         reply(origin, s);
       }
 

@@ -46,6 +46,9 @@ namespace Transports
   {
     using DUNE_NAMESPACES;
 
+    //! Timeout for a recent external entity list query.
+    static constexpr uint32_t c_timeout_recent_external_query = 15;
+
     //! Database types string representation.
     static const char* c_db_types[] = {
       "Request", "Success", "Failure", "In Progress", "Unknown",
@@ -105,6 +108,8 @@ namespace Transports
       std::map<uint32_t, FragmentsRetransmission> m_retransmissions;
       //! Timer to check retransmissions.
       Time::Counter<uint32_t> m_retransmit_timer;
+      //! Recent external entity list query timer.
+      Time::Counter<uint32_t> m_recent_ext_query_timer;
 
       //! Constructor.
       //! @param[in] name task name.
@@ -155,6 +160,7 @@ namespace Transports
         bind<IMC::PlanDB>(this);
         bind<IMC::PlanControlState>(this);
         bind<IMC::EntityList>(this);
+        bind<IMC::EntityParameters>(this);
       }
 
       ~Task(void)
@@ -303,6 +309,7 @@ namespace Transports
           uint16_t tid = m_req_id++;
           dispatchRequest(msg_frag, tid);
         }
+        it->second.m_period.reset();
       }
 
       void
@@ -361,14 +368,24 @@ namespace Transports
 
         if (msg->state == m_pcs.state && msg->plan_id == m_pcs.plan_id
             && msg->man_id == m_pcs.man_id)
+        {
+          m_pcs = *msg;  // Update the timestamp and other fields.
           return;
+        }
 
         m_pcs = *msg;
 
-        if (m_iri_subs.empty())
+        if (msg->state == IMC::PlanControlState::PCS_BLOCKED
+            || m_pcs.state == IMC::PlanControlState::PCS_INITIALIZING)
+        {
+          // Wait for next plan to execute.
           return;
+        }
 
-        if (m_filter.filter(msg))
+        m_pcs.setSourceEntity(getEntityId());
+        dispatch(m_pcs);
+
+        if (m_iri_subs.empty())
           return;
 
         sendIridiumMsg(msg);
@@ -377,10 +394,53 @@ namespace Transports
       void
       consume(const IMC::EntityList* msg)
       {
+        switch (msg->op)
+        {
+        case EntityList::OP_REPORT:
+        {
+          if (msg->getSource() != getSystemId())
+            return;
+
+          if (m_recent_ext_query_timer.getTop() > 0 && !m_recent_ext_query_timer.overflow())
+          {
+            if (m_iri_subs.empty())
+              return;
+
+            auto it = m_iri_subs.find(msg->getDestination());
+            if (it == m_iri_subs.end())
+              return;
+
+            sendIridiumMsg(msg, true);
+            m_recent_ext_query_timer.setTop(0);
+          }
+
+          break;
+        }
+        
+        case EntityList::OP_QUERY:
+        {
+          if (msg->getSource() != getSystemId())
+            m_recent_ext_query_timer.setTop(c_timeout_recent_external_query);
+
+          break;
+        }
+
+        default:
+          break;
+        }
+      }
+
+      void
+      consume(const IMC::EntityParameters* msg)
+      {
         if (msg->getSource() != getSystemId())
           return;
 
-        if (msg->op != EntityList::OP_REPORT)
+        // If the message is to the system itself or it has not a valid destination,
+        // ignore it.
+        // This is to avoid sending the message to the iridium network.
+        if (msg->getDestination() == getSystemId()
+            || msg->getDestination() == AddressResolver::invalid())
           return;
 
         if (m_iri_subs.empty())
@@ -390,7 +450,7 @@ namespace Transports
         if (it == m_iri_subs.end())
           return;
 
-        sendIridiumMsg(msg, true);
+        sendIridiumMsg(msg);
       }
 
       //! Consume for control messages
@@ -474,12 +534,22 @@ namespace Transports
         if (ir_msg == nullptr)
           return;
 
+        // Not an iridium operation message.
         if (ir_msg->msg_id != ID_UPDATE_OP)
         {
           if (!isActive())
             requestActivation();
 
-          m_iri_subs[ir_msg->source] = Clock::getSinceEpoch();
+          // Update the timestamp of the subscriber.
+          auto it = m_iri_subs.find(ir_msg->source);
+          if (it != m_iri_subs.end())
+          {
+            it->second = Clock::getSinceEpoch();
+            delete ir_msg;
+            return;
+          }
+
+          // New subscriber.
           onIridiumActivation(ir_msg->source);
           delete ir_msg;
           return;
@@ -514,8 +584,6 @@ namespace Transports
               return;
             }
 
-            m_iri_subs[op->source] = Clock::getSinceEpoch();
-
             if (!isActive())
               requestActivation();
 
@@ -535,9 +603,9 @@ namespace Transports
       onIridiumActivation(unsigned id)
       {
         debug("Activating iridium for %d", id);
+        m_iri_subs[id] = Clock::getSinceEpoch();
 
-        //? Send All EntityState messages?
-
+        dispatch(m_pcs);
         sendIridiumMsg(&m_pcs);
       }
 

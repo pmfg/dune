@@ -237,16 +237,19 @@ namespace Control
           // m_avg_one(0)
         {
           param("Enable Thrust Assistance", m_args.en_thrust)
+          .visibility(Tasks::Parameter::VISIBILITY_USER)
           .defaultValue("true")
           .description("Assist navigation with thruster");
 
           param("Minimum Speed for Thrust", m_args.min_sog)
           .units(Units::MeterPerSecond)
+          .visibility(Tasks::Parameter::VISIBILITY_USER)
           .minimumValue("0.0")
           .defaultValue("0.3")
           .description("Speed below which thruster is used");
 
           param("Enable Thrust During Turn", m_args.en_thrust_turn)
+          .visibility(Tasks::Parameter::VISIBILITY_USER)
           .defaultValue("true")
           .description("Assist the turn using the thruster");
 
@@ -259,7 +262,7 @@ namespace Control
           param("Thruster Always On", m_args.force_thrust_assist)
           .defaultValue("true")
           .visibility(Tasks::Parameter::VISIBILITY_USER)
-          .scope(Tasks::Parameter::SCOPE_MANEUVER)
+          //.scope(Tasks::Parameter::SCOPE_MANEUVER)
           .description("Force the thruster to be always on");
 
           param("Maximum Thrust Actuation", m_args.max_thrust)

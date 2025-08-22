@@ -106,8 +106,9 @@ namespace Monitors
         param("Payload Messages", m_args.pay_msgs)
           .defaultValue("")
           .description("List of messages <Message>:<Entity>:<Rate> to send using Iridium. "
-                       "The rate is in seconds and is optional. If not specified or equal to 0, "
-                       "the message will be sent every time it is received.");
+                       "The rate is in seconds and is optional. If rate is not specified, "
+                       "the message will be sent every time it is received. "
+                       "If rate is 0, the message will be ignored.");
 
         param("Maximum payload size", m_args.max_payload)
           .defaultValue("259")
@@ -154,12 +155,14 @@ namespace Monitors
             {
               unsigned msg_id = IMC::Factory::getIdFromAbbrev(params[0]);
               unsigned eid = tryResolveEntity(params[1]);
-              if (params.size() == 3)
+              uint64_t hash = (static_cast<uint64_t>(eid) << 32) | msg_id;
+              auto it = m_rate_lim.find(hash);
+              if (it != m_rate_lim.end())
               {
-                uint64_t hash = (static_cast<uint64_t>(eid) << 32) | msg_id;
-                auto it = m_rate_lim.find(hash);
-                if (it != m_rate_lim.end())
+                if (params.size() == 3)                
                   it->second.first = castLexical<unsigned>(params[2]);
+                else
+                  m_rate_lim.erase(it);
               }
             }
             catch(...)
@@ -281,7 +284,7 @@ namespace Monitors
 
         uint64_t rate = it->second.first;
         if (rate == 0)
-          return true;
+          return false;
 
         auto& last_time = it->second.second;
         if (last_time == 0)
@@ -376,6 +379,7 @@ namespace Monitors
           IMC::MessagePart* msg_frag = it->second.m_fragments->getFragment(frag);
           sendInline(msg_frag);
         }
+        it->second.m_period.reset();
       }
 
       void

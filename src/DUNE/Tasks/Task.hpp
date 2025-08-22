@@ -546,7 +546,7 @@ namespace DUNE
       Parameter&
       param(const std::string& name, T& var)
       {
-        return param<BasicParameterParser<T> >(name, var);
+        return param<BasicParameterParser<T>>(name, var);
       }
 
       //! Declare a configuration parameter that can be parsed using
@@ -795,6 +795,39 @@ namespace DUNE
       {
         spew("on deactivation");
       }
+
+      template<typename T>
+      void
+      applyEntityParameter(T& param, const T& value, bool save = false)
+      {
+        try
+        {
+          void* var = static_cast<void*>(&param);
+          IMC::EntityParameters params;
+          params.name = getEntityLabel();
+          const auto& p = m_params.apply(var, uncastLexical(value));
+          params.params.push_back(p);
+          dispatch(params);
+
+          if (save)
+            saveEntityParameters();
+        }
+        catch(const std::exception& e)
+        {
+          war("Failed to apply entity parameter: %s", e.what());
+        }
+      }
+
+      void
+      setEntityParameter(const IMC::EntityParameter& param,
+                         const bool save = false);
+
+      void
+      setEntityParameters(const IMC::MessageList<IMC::EntityParameter>& params,
+                          const bool save = false);
+
+      void
+      saveEntityParameters(void);
 
       virtual void
       onQueryEntityParameters(const IMC::QueryEntityParameters* msg);

@@ -506,12 +506,19 @@ namespace DUNE
       if (msg->name != getEntityLabel())
         return;
 
+      IMC::EntityParameters params;
+      params.name = getEntityLabel();
+
       IMC::MessageList<IMC::EntityParameter>::const_iterator itr = msg->params.begin();
       for (; itr != msg->params.end(); ++itr)
       {
         try
         {
           m_params.set((*itr)->name, (*itr)->value);
+          IMC::EntityParameter p;
+          p.name = (*itr)->name;
+          p.value = (*itr)->value;
+          params.params.push_back(p);
           m_ctx.config.set(getName(), (*itr)->name, (*itr)->value);
         }
         catch (std::runtime_error& e)
@@ -520,6 +527,9 @@ namespace DUNE
               (*itr)->name.c_str());
         }
       }
+
+      if (!params.params.empty())
+        dispatchReply(*msg, params);
 
       updateParameters();
     }
@@ -590,6 +600,42 @@ namespace DUNE
         return;
 
       onRequestRestart(msg);
+    }
+
+    void
+    Task::setEntityParameter(const IMC::EntityParameter& param, const bool save)
+    {
+      IMC::SetEntityParameters sep;
+      sep.setDestination(getSystemId());
+      sep.setDestinationEntity(getEntityId());
+      sep.name = getEntityLabel();
+      sep.params.push_back(param);
+      dispatch(sep, DF_LOOP_BACK);
+
+      if (save)
+        saveEntityParameters();
+    }
+
+    void
+    Task::setEntityParameters(const IMC::MessageList<IMC::EntityParameter>& params, const bool save)
+    {
+      IMC::SetEntityParameters sep;
+      sep.setDestination(getSystemId());
+      sep.setDestinationEntity(getEntityId());
+      sep.name = getEntityLabel();
+      sep.params = params;
+      dispatch(sep, DF_LOOP_BACK);
+
+      if (save)
+        saveEntityParameters();
+    }
+
+    void
+    Task::saveEntityParameters(void)
+    {
+      IMC::SaveEntityParameters sp;
+      sp.name = getEntityLabel();
+      dispatch(sp, DF_LOOP_BACK);
     }
 
     void

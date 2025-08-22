@@ -66,6 +66,8 @@ namespace Transports
     const std::string c_sms_section = "Monitors.Emergency";
     //! Config field from where to fetch emergency sms number
     const std::string c_sms_field = "SMS Recipient Number";
+    //! Minimum period for iridium messages, in seconds
+    const int c_minimum_iridium_period = 300;
 
     struct Task: public DUNE::Tasks::Task
     {
@@ -218,7 +220,8 @@ namespace Transports
       void
       onUpdateParameters(void)
       {
-        m_iridium_timer.setTop(m_args.iridium_period);
+        if(paramChanged(m_args.iridium_period))
+          m_iridium_timer.setTop(0);
       }
 
       void
@@ -228,6 +231,9 @@ namespace Transports
           return;
 
         Memory::replace(m_pstate, new IMC::PlanControlState(*msg));
+
+        std::string str = msg->plan_id + "|Man:" + msg->man_id;
+        m_plan_chksum = CRC16::compute((uint8_t*)str.data(), str.size());
       }
 
       void
@@ -273,7 +279,9 @@ namespace Transports
         if (msg->getSource() != getSystemId())
           return;
 
-        m_plan_chksum = CRC16::compute((uint8_t*)msg->plan_id.data(), msg->plan_id.size());
+        std::string str = msg->plan_id + "|Man:" + msg->start_man_id;
+        m_plan_chksum = CRC16::compute((uint8_t*)str.data(), str.size());
+
       }
 
       void
@@ -936,15 +944,16 @@ namespace Transports
                 request.setDestination (getSystemId());
                 request.comm_mean = IMC::TransmissionRequest::CMEAN_SATELLITE;
                 request.data_mode = IMC::TransmissionRequest::DMODE_INLINEMSG;
-                request.deadline = Time::Clock::getSinceEpoch() + m_args.iridium_period;
+                fp64_t ttl = std::max(c_minimum_iridium_period, m_args.iridium_period);
+                request.deadline = Time::Clock::getSinceEpoch() + ttl;
                 request.destination = "broadcast";
                 request.msg_data.set(msg);
                 request.req_id = m_router.createInternalId();
                 dispatch(request, DF_LOOP_BACK);
 
                 Memory::clear(msg);
+                m_iridium_timer.setTop(m_args.iridium_period);
               }
-              m_iridium_timer.reset();
             }
           }
         }
