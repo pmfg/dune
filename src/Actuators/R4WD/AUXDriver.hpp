@@ -290,7 +290,7 @@ namespace Actuators
 
         // speed input is from -1 to 1, need to convert to -255 to 255
         int final_speed = static_cast<int>(value_speed * 255);
-        m_task->err("Direction: %d | Speed: %d", final_dir, final_speed);
+        m_task->trace("Direction: %d | Speed: %d", final_dir, final_speed);
 
         char cmd[64];
         std::sprintf(cmd, "%c,%c,%d,%d%c", BYTE_PREAMBLE, BYTE_SET_SPEED, final_dir, final_speed, '\0');
